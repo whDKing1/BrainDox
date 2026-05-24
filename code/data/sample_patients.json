@@ -1,0 +1,32 @@
+[
+  {
+    "id": "case_001",
+    "description": "45-year-old male presenting with fever (39.2°C) for 3 days, productive cough with yellow sputum, and right-sided chest pain that worsens with deep breathing. History of type 2 diabetes (diagnosed 5 years ago) and hypertension. Current medications: metformin 500mg twice daily, lisinopril 10mg daily. Allergies: penicillin (causes rash). Vital signs: BP 130/85, HR 102, RR 22, SpO2 94% on room air. Labs: WBC 15,000/μL (elevated), CRP 85 mg/L (elevated), procalcitonin 2.1 ng/mL (elevated). Chest X-ray shows right lower lobe consolidation.",
+    "expected_diagnosis": "Community-Acquired Pneumonia",
+    "expected_icd10": "J18.1"
+  },
+  {
+    "id": "case_002",
+    "description": "62-year-old female with sudden onset of crushing chest pain radiating to the left arm for 2 hours, associated with diaphoresis, nausea, and shortness of breath. History of hyperlipidemia, smoking (30 pack-years, quit 2 years ago), and family history of MI (father at age 55). Current medications: atorvastatin 40mg daily, aspirin 81mg daily. No known allergies. Vital signs: BP 160/95, HR 110, RR 24, SpO2 96%. ECG shows ST elevation in leads V1-V4. Troponin I: 4.5 ng/mL (markedly elevated).",
+    "expected_diagnosis": "ST-Elevation Myocardial Infarction (STEMI)",
+    "expected_icd10": "I21.0"
+  },
+  {
+    "id": "case_003",
+    "description": "28-year-old female presenting with progressive fatigue, weight gain of 8kg over 6 months, cold intolerance, constipation, and dry skin. She also reports hair thinning and difficulty concentrating. No significant past medical history. Family history: mother has Hashimoto's thyroiditis. No current medications. No allergies. Vital signs: BP 105/70, HR 58, Temp 36.2°C. Labs: TSH 15.2 mIU/L (elevated), Free T4 0.4 ng/dL (low), Anti-TPO antibodies positive.",
+    "expected_diagnosis": "Hypothyroidism (Hashimoto's Thyroiditis)",
+    "expected_icd10": "E03.9"
+  },
+  {
+    "id": "case_004",
+    "description": "55-year-old male with worsening shortness of breath on exertion over the past month, now occurring with minimal activity. Bilateral lower extremity edema, orthopnea requiring 3 pillows, and paroxysmal nocturnal dyspnea. History of coronary artery disease (CABG 3 years ago), type 2 diabetes, and hypertension. Current medications: carvedilol 25mg BID, furosemide 40mg daily, lisinopril 20mg daily, metformin 1000mg BID, aspirin 81mg daily. No allergies. Vital signs: BP 100/65, HR 95, RR 26, SpO2 91% on room air. Physical exam: JVD, bilateral crackles on lung auscultation, 3+ pitting edema bilaterally. BNP: 1250 pg/mL (elevated). Chest X-ray: cardiomegaly with bilateral pleural effusions.",
+    "expected_diagnosis": "Acute Decompensated Heart Failure",
+    "expected_icd10": "I50.9"
+  },
+  {
+    "id": "case_005",
+    "description": "35-year-old male presenting to the ER with severe right lower quadrant abdominal pain for 12 hours, initially periumbilical then migrating to RLQ. Associated nausea, one episode of vomiting, anorexia, and low-grade fever (37.8°C). No significant medical history. No current medications. No allergies. Vital signs: BP 125/80, HR 92, Temp 37.8°C. Physical exam: McBurney's point tenderness, positive Rovsing's sign, rebound tenderness. Labs: WBC 14,200/μL with left shift, CRP 45 mg/L. CT abdomen: inflamed appendix with periappendiceal fat stranding, no perforation.",
+    "expected_diagnosis": "Acute Appendicitis",
+    "expected_icd10": "K35.80"
+  }
+]

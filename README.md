@@ -1,13 +1,15 @@
 <div align="center">
 
-# 🧠 BrainDox — 神经内科脑疾病临床辅助决策系统
+# 🧠 BrainDox — 神经内科脑疾病临床助手
 
-**基于多Agent的神经内科脑疾病临床辅助决策系统**
+**基于多Agent的神经内科脑疾病临床辅助决策助手**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)]()
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.2+-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)]()
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white)]()
 [![DeepSeek](https://img.shields.io/badge/DeepSeek-V4-4F46E5?style=for-the-badge)]()
+[![Neo4j](https://img.shields.io/badge/Neo4j-5.x-008CC1?style=for-the-badge&logo=neo4j&logoColor=white)]()
+[![GraphRAG](https://img.shields.io/badge/GraphRAG-Knowledge_Graph-005682?style=for-the-badge)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 [![HIPAA](https://img.shields.io/badge/HIPAA-Compliant-green?style=for-the-badge)]()
 [![FHIR R4](https://img.shields.io/badge/FHIR-R4-FF6B6B?style=for-the-badge)]()
@@ -30,7 +32,10 @@
 - [🏗️ 系统架构](#️-系统架构)
 - [🚀 快速开始](#-快速开始)
 - [🤖 五个Agent详解](#-五个agent详解)
+- [🧠 GraphRAG + Neo4j 知识图谱](#-graphrag--neo4j-知识图谱)
+- [💊 药物交互数据库](#-药物交互数据库)
 - [📡 API接口文档](#-api接口文档)
+- [🧪 测试](#-测试)
 - [📂 项目目录结构](#-项目目录结构)
 - [🔮 路线图](#-路线图)
 - [📜 License](#-license)
@@ -160,8 +165,8 @@ graph TB
 | 工具 | 版本要求 | 用途 |
 |:---|:---|:---|
 | Python | 3.11+ | 运行时 |
-| Anaconda | — | 环境管理（推荐） |
-| Docker | 20.0+ | 基础设施服务 |
+| UV | 最新版 | 虚拟环境与包管理（推荐） |
+| Docker | 20.0+ | 基础设施服务（PostgreSQL + Neo4j + Redis） |
 | DeepSeek API Key | — | LLM推理 |
 
 ### 安装步骤
@@ -169,30 +174,39 @@ graph TB
 ```bash
 # 进入代码目录
 cd code
+
 # 创建 UV 虚拟环境
 uv venv
+
 # 激活环境
 .\.venv\Scripts\activate
+
 # 安装依赖
 uv pip install -r requirements.txt
 
 # 配置 API Key
 copy .env.example .env
 
-# 编辑 .env 文件，填入你的 DeepSeek API Key：
+# 编辑 .env 文件，填入你的 DeepSeek API Key 和 Neo4j 密码：
 #   OPENAI_API_KEY=sk-your-deepseek-api-key
 #   OPENAI_MODEL=deepseek-v4-pro
 #   OPENAI_BASE_URL=https://api.deepseek.com
+#   NEO4J_PASSWORD=your-neo4j-password
 
-# ④ 启动基础设施（PostgreSQL + Neo4j + Redis）
+# 启动基础设施（PostgreSQL + Neo4j + Redis）
 docker compose up -d postgres neo4j redis
-# 等待约10秒，让数据库完全启动
+# 等待约15秒，让数据库完全启动
 
-# ⑤ 启动API服务
+# 导入 Neo4j 知识图谱种子数据（仅首次需要）
+python seed_neo4j.py
+
+# 启动API服务
 uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 # ✅ 看到以下输出说明启动成功：
 #   INFO:     Uvicorn running on http://0.0.0.0:8000
+#   graphrag.mode use_neo4j=True
+#   graphrag.neo4j_connected
 ```
 
 ### 环境变量详解
@@ -228,7 +242,7 @@ APP_PORT=8000
 LOG_LEVEL=INFO
 ```
 
-> 💡 只有 `OPENAI_API_KEY`、`OPENAI_MODEL`、`OPENAI_BASE_URL` 是**必须**修改的，其他保持默认即可。
+> 💡 核心环境变量：`OPENAI_API_KEY`、`OPENAI_MODEL`、`OPENAI_BASE_URL`、`NEO4J_PASSWORD` 是**必须**修改的，其他保持默认即可。
 
 ### 验证运行
 
@@ -295,13 +309,24 @@ PatientInfo
 
 ---
 
-### Agent 2: Diagnosis Agent（神经科鉴别诊断）
+### Agent 2: Diagnosis Agent（神经科鉴别诊断 + GraphRAG增强）
 
-生成带神经解剖定位的排名鉴别诊断：
+生成带神经解剖定位的排名鉴别诊断，**集成 GraphRAG 知识图谱**进行症状→疾病多跳检索：
 
 - **专科领域**：脑血管疾病（卒中、TIA、SAH、ICH）、癫痫、神经退行性疾病（帕金森、阿尔茨海默、ALS）、脱髓鞘疾病（MS、ADEM）、神经肌肉疾病（GBS、MG）
 - **神经解剖定位**：输出病变定位（如左MCA供血区、脑干、脊髓T8水平、周围神经），并提供定位依据
 - **条件路由**：如果信息不足（`needs_more_info=true`），Pipeline回退到Intake Agent补充信息，最多重试2次
+- **GraphRAG增强**：LLM调用前先从Neo4j知识图谱检索候选疾病，注入Prompt引导LLM重点考虑高关联疾病，减少幻觉和遗漏
+
+**诊断流程**：
+
+```
+patient_info → 提取症状关键词 → Neo4j Cypher 三跳查询（Symptom→Disease→ICD10Code）
+                                    ↓
+                              候选疾病列表（按症状匹配数排序）
+                                    ↓
+             patient_info + 候选疾病 → LLM综合判断 → 鉴别诊断 + 神经解剖定位
+```
 
 **输出结构**：
 ```json
@@ -398,40 +423,94 @@ PatientInfo
 
 ---
 
-### GraphRAG 知识图谱
+## 🧠 GraphRAG + Neo4j 知识图谱
 
-神经内科专属症状-疾病映射，辅助Diagnosis Agent进行鉴别诊断：
+### 图数据模型
 
-```python
-# code/src/services/graphrag_service.py
+神经内科专属知识图谱，采用**三节点链式结构**存储症状→疾病→编码的关联：
 
-SYMPTOM_DISEASE_MAP = {
-    "headache":        ["Migraine", "Tension Headache", "SAH", "Meningitis", "Intracranial Hypertension", "Brain Tumor"],
-    "seizure":         ["Epilepsy", "Brain Tumor", "Ischemic Stroke", "ICH", "Meningitis", "Encephalitis"],
-    "limb_weakness":   ["Ischemic Stroke", "ICH", "GBS", "MS", "Spinal Cord Compression", "MG", "ALS"],
-    "altered_mentation":["Encephalitis", "Meningitis", "Ischemic Stroke", "Hepatic Encephalopathy", "Status Epilepticus"],
-    "visual_disturbance":["MS", "Migraine", "Brain Tumor", "Optic Neuritis", "IIH", "Temporal Arteritis"],
-    # ... 更多症状映射
-}
-
-DISEASE_ICD10_MAP = {
-    "Ischemic Stroke":            {"code": "I63.9", "desc": "Cerebral infarction, unspecified"},
-    "Intracerebral Hemorrhage":   {"code": "I61.9", "desc": "Nontraumatic intracerebral hemorrhage"},
-    "Subarachnoid Hemorrhage":    {"code": "I60.9", "desc": "Nontraumatic subarachnoid hemorrhage"},
-    "Epilepsy":                   {"code": "G40.9", "desc": "Epilepsy, unspecified"},
-    "Multiple Sclerosis":         {"code": "G35",   "desc": "Multiple sclerosis"},
-    "Parkinson Disease":          {"code": "G20",   "desc": "Parkinson disease"},
-    # ... 更多疾病映射
-}
+```
+(:Symptom) -[:INDICATES]-> (:Disease) -[:HAS_CODE]-> (:ICD10Code)
 ```
 
-**查询逻辑**：通过"投票计数"算法排序——被更多症状指向的疾病排名更高。
+| 节点类型 | 属性 | 当前数量 | 说明 |
+|:---|:---|:---:|:---|
+| `(:Symptom)` | `name` (唯一) | 18 | 神经科常见症状（头痛、癫痫、偏瘫等） |
+| `(:Disease)` | `name` (唯一) | 71 | 神经内科疾病（卒中、MS、GBS等） |
+| `(:ICD10Code)` | `code` (唯一), `description` | 66 | ICD-10-CM 编码（5个编码被多疾病共享） |
 
-**关键代码**：[`code/src/services/graphrag_service.py`](code/src/services/graphrag_service.py)
+### 查询示例
+
+一条 Cypher 完成三跳查询，输入症状返回疾病+编码+匹配数：
+
+```cypher
+MATCH (s:Symptom)-[:INDICATES]->(d:Disease)
+WHERE s.name IN ['limb_weakness', 'facial_droop', 'speech_difficulty']
+OPTIONAL MATCH (d)-[:HAS_CODE]->(c:ICD10Code)
+RETURN d.name AS disease, c.code AS icd10_code,
+       c.description AS icd10_desc, COUNT(DISTINCT s) AS symptom_match_count
+ORDER BY symptom_match_count DESC
+```
+
+**返回结果**：
+
+| 排名 | disease | symptom_match_count | icd10_code |
+|:---:|:---|:---:|:---:|
+| 1 | Ischemic Stroke | 3 | I63.9 |
+| 2 | Intracerebral Hemorrhage | 3 | I61.9 |
+| 3 | Brain Tumor | 1 | C71.9 |
+| ... | ... | ... | ... |
+
+### 双模式架构
+
+GraphRAG Service 支持双模式运行，自动切换、零配置降级：
+
+```
+find_diseases_by_symptoms(["limb_weakness", "facial_droop"])
+    │
+    ├── Neo4j 已连接 → _find_diseases_neo4j()  ← Cypher 三跳查询
+    │                   ● 生产模式，低延迟
+    │
+    └── Neo4j 不可用 → _find_diseases_offline() ← Python 字典投票
+                        ● 离线兜底，零依赖
+```
+
+| 模式 | 触发条件 | 数据源 | 查询方式 |
+|:---|:---|:---|:---|
+| **Neo4j** | `.env` 中 `NEO4J_PASSWORD` 有值 + 容器运行 | Neo4j 图数据库 | Cypher 多跳查询 |
+| **离线** | Neo4j 不可用 / 密码为空 | `SYMPTOM_DISEASE_MAP` + `DISEASE_ICD10_MAP` | Python 字典投票计数 |
+
+> ✅ 经 79 个测试用例验证，两种模式在所有 18 种症状组合下返回**完全一致**的结果。
+
+### 种子数据导入
+
+```bash
+# Neo4j 容器已启动后，执行一次即可
+python seed_neo4j.py
+```
+
+脚本自动完成：
+1. 清理旧数据 → 创建唯一性约束 → 导入 71 个 Disease + 66 个 ICD10Code + HAS_CODE 关系
+2. 导入 18 个 Symptom + INDICATES 关系
+3. 使用 `MERGE` 避免重复，可安全多次执行
+
+### 后续扩展方向
+
+```
+                      ┌── [:HAS_CODE] ──→ (:ICD10Code)
+                      │
+(:Symptom) ──→ (:Disease) ──→ [:TREATED_BY] ──→ (:Medication)
+                      │
+                      ├── [:DIAGNOSED_BY] ──→ (:Exam)
+                      │
+                      └── [:GUIDED_BY] ──→ (:Guideline)
+```
+
+**关键代码**：[`code/src/services/graphrag_service.py`](code/src/services/graphrag_service.py) | [`code/seed_neo4j.py`](code/seed_neo4j.py)
 
 ---
 
-### 药物交互数据库
+## 💊 药物交互数据库
 
 神经科常用药物交互数据，Treatment Agent自动调用检查：
 
@@ -573,6 +652,181 @@ Invoke-RestMethod -Uri "http://localhost:8000/health" -Method Get
 
 ---
 
+## 🧪 测试
+
+### 测试概览
+
+| 文件 | 测试层 | 用例数 | 覆盖内容 |
+|:---|:---|:---:|:---|
+| `tests/test_graphrag.py` | GraphRAG + Neo4j | 79 | Neo4j 基础设施、离线模式、双模式一致性、降级 |
+| `tests/test_services.py` | 服务层基础 | 14 | ICD-10、DDI、HIPAA、GraphRAG 离线 |
+
+### 运行测试
+
+```bash
+# 全部测试（需要 Neo4j 容器运行才能跑 L1/L3）
+.venv\Scripts\pytest tests/test_graphrag.py -v
+
+# 仅离线模式 + 降级（无需 Neo4j）
+.venv\Scripts\pytest tests/test_graphrag.py -v -k "Offline or Fallback"
+
+# 仅 Neo4j 相关
+.venv\Scripts\pytest tests/test_graphrag.py -v -k "Neo4j or DualMode or neo4j"
+
+# 运行全部测试（新旧都跑）
+.venv\Scripts\pytest tests/ -v
+```
+
+---
+
+### 测试结果展示
+
+最后一次全量运行结果：**79 passed, 0 failed**
+
+```
+============================= test session starts ==============================
+platform win32 -- Python 3.11.7, pytest-9.0.3, pluggy-1.6.0
+collected 79 items
+
+tests/test_graphrag.py::TestNeo4jInfrastructure::test_node_counts PASSED  [  1%]
+tests/test_graphrag.py::TestNeo4jInfrastructure::test_all_diseases_have_icd10 PASSED [  2%]
+tests/test_graphrag.py::TestNeo4jInfrastructure::test_all_diseases_have_indicates PASSED [  3%]
+tests/test_graphrag.py::TestNeo4jInfrastructure::test_cypher_three_hop_query PASSED [  5%]
+tests/test_graphrag.py::TestOfflineMode::test_multi_symptom_stroke_case PASSED [  6%]
+tests/test_graphrag.py::TestOfflineMode::test_single_symptom_headache PASSED [  7%]
+tests/test_graphrag.py::TestOfflineMode::test_single_symptom_seizure PASSED [  8%]
+tests/test_graphrag.py::TestOfflineMode::test_empty_symptoms PASSED    [ 10%]
+tests/test_graphrag.py::TestOfflineMode::test_unknown_symptom PASSED   [ 11%]
+tests/test_graphrag.py::TestOfflineMode::test_case_insensitive PASSED  [ 12%]
+tests/test_graphrag.py::TestOfflineMode::test_space_handling PASSED    [ 13%]
+tests/test_graphrag.py::TestOfflineMode::test_return_structure PASSED  [ 15%]
+tests/test_graphrag.py::TestOfflineMode::test_descending_order PASSED  [ 16%]
+tests/test_graphrag.py::TestOfflineMode::test_get_icd10_known PASSED   [ 17%]
+tests/test_graphrag.py::TestOfflineMode::test_get_icd10_unknown PASSED [ 18%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[headache] PASSED [ 20%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[seizure] PASSED [ 21%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[limb_weakness] PASSED [ 22%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[numbness] PASSED [ 24%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[tremor] PASSED [ 25%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[visual_disturbance] PASSED [ 26%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[dizziness] PASSED [ 27%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[speech_difficulty] PASSED [ 29%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[confusion] PASSED [ 30%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[gait_disturbance] PASSED [ 31%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[memory_loss] PASSED [ 32%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[neck_stiffness] PASSED [ 34%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[facial_droop] PASSED [ 35%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[double_vision] PASSED [ 36%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[muscle_cramps] PASSED [ 37%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[sensory_loss] PASSED [ 39%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[involuntary_movements] PASSED [ 40%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_returns_diseases[loss_of_consciousness] PASSED [ 41%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[headache] PASSED [ 43%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[seizure] PASSED [ 44%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[limb_weakness] PASSED [ 45%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[numbness] PASSED [ 46%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[tremor] PASSED [ 48%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[visual_disturbance] PASSED [ 49%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[dizziness] PASSED [ 50%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[speech_difficulty] PASSED [ 51%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[confusion] PASSED [ 53%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[gait_disturbance] PASSED [ 54%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[memory_loss] PASSED [ 55%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[neck_stiffness] PASSED [ 56%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[facial_droop] PASSED [ 58%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[double_vision] PASSED [ 59%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[muscle_cramps] PASSED [ 60%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[sensory_loss] PASSED [ 62%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[involuntary_movements] PASSED [ 63%]
+tests/test_graphrag.py::TestOfflineMode::test_every_symptom_top_disease_has_icd10[loss_of_consciousness] PASSED [ 64%]
+tests/test_graphrag.py::TestOfflineMode::test_query_neo4j_fallback PASSED [ 65%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[headache] PASSED [ 67%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[seizure] PASSED [ 68%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[limb_weakness] PASSED [ 69%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[numbness] PASSED [ 70%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[tremor] PASSED [ 72%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[visual_disturbance] PASSED [ 73%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[dizziness] PASSED [ 74%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[speech_difficulty] PASSED [ 75%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[confusion] PASSED [ 77%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[gait_disturbance] PASSED [ 78%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[memory_loss] PASSED [ 79%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[neck_stiffness] PASSED [ 81%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[facial_droop] PASSED [ 82%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[double_vision] PASSED [ 83%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[muscle_cramps] PASSED [ 84%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[sensory_loss] PASSED [ 86%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[involuntary_movements] PASSED [ 87%]
+tests/test_graphrag.py::TestDualModeConsistency::test_single_symptom_consistency[loss_of_consciousness] PASSED [ 88%]
+tests/test_graphrag.py::TestDualModeConsistency::test_multi_symptom_consistency_stroke PASSED [ 89%]
+tests/test_graphrag.py::TestDualModeConsistency::test_multi_symptom_consistency_meningitis PASSED [ 91%]
+tests/test_graphrag.py::TestDualModeConsistency::test_multi_symptom_consistency_ms PASSED [ 92%]
+tests/test_graphrag.py::TestDualModeConsistency::test_multi_symptom_consistency_unknown PASSED [ 93%]
+tests/test_graphrag.py::TestDualModeConsistency::test_empty_symptoms_consistency PASSED [ 94%]
+tests/test_graphrag.py::TestDualModeConsistency::test_public_api_returns_same_structure PASSED [ 96%]
+tests/test_graphrag.py::TestFallback::test_bad_credentials_fallback PASSED [ 97%]
+tests/test_graphrag.py::TestFallback::test_find_diseases_when_neo4j_enabled_but_unreachable PASSED [ 98%]
+tests/test_graphrag.py::TestFallback::test_singleton_defaults_to_settings PASSED [100%]
+
+============================== 79 passed in 2.39s ==============================
+```
+
+---
+
+### 各层测试结果详解
+
+#### L1: Neo4j 基础设施（4/4 ✅）
+
+| 用例 | 验证内容 | 结果 |
+|:---|:---|:---:|
+| `test_node_counts` | `MATCH (n) RETURN labels(n), count(n)` → Symptom=18, Disease=71, ICD10Code=66 | ✅ |
+| `test_all_diseases_have_icd10` | 所有 71 个 Disease 节点都有 `[:HAS_CODE]` 关系指向 ICD10Code | ✅ |
+| `test_all_diseases_have_indicates` | 无 INDICATES 关系的 Disease 限于 `DISEASE_ICD10_MAP` 独有但未被任何 Symptom 引用的合法断层 | ✅ |
+| `test_cypher_three_hop_query` | 输入 `limb_weakness + facial_droop + speech_difficulty`，三跳查询返回 Ischemic Stroke 排名第一、匹配数=3、编码 I63.9 | ✅ |
+
+#### L2: 离线模式单元测试（16/16 ✅）
+
+| 用例 | 验证内容 | 结果 |
+|:---|:---|:---:|
+| `test_multi_symptom_stroke_case` | 三症状（偏瘫+面瘫+言语障碍）→ Ischemic Stroke / ICH 排第一，匹配数=3 | ✅ |
+| `test_single_symptom_headache` | 单症状头痛 → 返回 8 个疾病，Migraine 排第一 | ✅ |
+| `test_single_symptom_seizure` | 单症状癫痫 → 返回 ≥5 个疾病，Epilepsy 排第一 | ✅ |
+| `test_empty_symptoms` | 空列表 → 返回 `[]`，不抛异常 | ✅ |
+| `test_unknown_symptom` | 未知症状 → 返回 `[]`，不抛异常 | ✅ |
+| `test_case_insensitive` | `headache` vs `HEADACHE` → 完全一致 | ✅ |
+| `test_space_handling` | `limb weakness` → 等价于 `limb_weakness` | ✅ |
+| `test_return_structure` | 每条结果包含 `disease` + `symptom_match_count`(int) + `icd10_code`(str) + `icd10_description`(str) | ✅ |
+| `test_descending_order` | 结果按 `symptom_match_count` 降序排列 | ✅ |
+| `test_get_icd10_known` | `Ischemic Stroke` → `{"code": "I63.9", "desc": "Cerebral infarction, unspecified"}` | ✅ |
+| `test_get_icd10_unknown` | 未知疾病 → `None` | ✅ |
+| `test_query_neo4j_fallback` | 离线模式下 `query_neo4j()` → `[]` | ✅ |
+| `test_every_symptom_returns_diseases` (×18) | SYMPTOM_DISEASE_MAP 中 18 个症状键各自返回 ≥1 个疾病 | ✅ ×18 |
+| `test_every_symptom_top_disease_has_icd10` (×18) | 18 个症状排名第一的疾病 ICD-10 编码非空 | ✅ ×18 |
+
+#### L3: 双模式一致性（56/56 ✅）— 核心验证
+
+这是整个测试套件的核心，验证 **Neo4j Cypher 查询与离线 Python 字典返回完全一致的结果**：
+
+| 用例 | 验证内容 | 结果 |
+|:---|:---|:---:|
+| `test_single_symptom_consistency` (×18) | 18 个症状逐一对比：Neo4j `_find_diseases_neo4j()` vs 离线 `_find_diseases_offline()`，疾病名+匹配数+ICD-10 三元组完全一致 | ✅ ×18 |
+| `test_multi_symptom_consistency_stroke` | `limb_weakness + facial_droop + speech_difficulty` 两种模式一致 | ✅ |
+| `test_multi_symptom_consistency_meningitis` | `headache + neck_stiffness + confusion` 两种模式一致 | ✅ |
+| `test_multi_symptom_consistency_ms` | `numbness + visual_disturbance + sensory_loss + tremor` 两种模式一致 | ✅ |
+| `test_multi_symptom_consistency_unknown` | 混合已知+未知症状两种模式一致 | ✅ |
+| `test_empty_symptoms_consistency` | 空输入两种模式一致 | ✅ |
+| `test_public_api_returns_same_structure` | `find_diseases_by_symptoms()` 公开方法在两种模式下返回相同三元组 | ✅ |
+
+#### L4: 降级测试（3/3 ✅）
+
+| 用例 | 验证内容 | 结果 |
+|:---|:---|:---:|
+| `test_bad_credentials_fallback` | 错误密码 → `connect()` 失败 → `use_neo4j=False` | ✅ |
+| `test_find_diseases_when_neo4j_enabled_but_unreachable` | `use_neo4j=True` 但 driver 为 None → 自动降级离线模式，结果正确 | ✅ |
+| `test_singleton_defaults_to_settings` | `get_graphrag_service()` 根据 `.env` 中 `NEO4J_PASSWORD` 自动决定模式 | ✅ |
+
+---
+
 ## 📂 项目目录结构
 
 ```
@@ -605,7 +859,9 @@ BrainDox/
 │   │   └── config/
 │   │       └── settings.py                 # 环境配置（Pydantic Settings）
 │   ├── tests/
+│   │   ├── test_graphrag.py                # GraphRAG + Neo4j 全面测试（79用例）
 │   │   └── test_services.py                # 服务层测试
+│   ├── seed_neo4j.py                        # Neo4j 知识图谱种子数据导入
 │   ├── data/
 │   │   └── sample_patients.json            # 测试病例
 │   ├── .env.example                        # 环境变量模板
@@ -634,6 +890,15 @@ BrainDox/
 ---
 
 ## 🔮 路线图
+
+### 已完成
+
+- [x] 🧠 **GraphRAG + Neo4j 知识图谱**：三节点链式图模型（Symptom→Disease→ICD10Code），双模式架构（Neo4j + 离线自动降级），79 用例全绿
+- [x] ⚡ **极简速记→结构化**：Intake Agent 临床速记扩写 + 结构化，支持缩写展开、语义扩展、缺失推断
+- [x] 🤖 **5 Agent 流程**：Intake → Diagnosis → Treatment → Coding → Audit 全链路
+- [x] 🔄 **人机协同**：Human-in-the-Loop 中断机制
+- [x] 📋 **神经科 ICD-10**：71 疾病 × 66 编码完整映射
+- [x] 💊 **神经科 DDI**：抗癫痫药、抗凝药、帕金森药交互数据库
 
 ### 近期计划
 

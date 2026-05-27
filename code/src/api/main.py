@@ -4,10 +4,22 @@ FastAPI application entry point.
 Provides REST API for the clinical decision pipeline.
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import router
+from ..services.graphrag_service import get_graphrag_service
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期：启动时连接 Neo4j，关闭时释放连接。"""
+    service = get_graphrag_service()
+    await service.connect()
+    yield
+    service.close()
+
 
 app = FastAPI(
     title="Multi-Agent Clinical Decision Support System",
@@ -19,6 +31,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

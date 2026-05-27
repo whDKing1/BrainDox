@@ -107,6 +107,37 @@ DISEASE_ICD10_MAP = {
     "Vestibular Neuritis": {"code": "H81.2", "desc": "Vestibular neuronitis"},
     "Giant Cell Arteritis": {"code": "M31.5", "desc": "Giant cell arteritis with polymyalgia rheumatica"},
     "Intracranial Hypertension": {"code": "G93.2", "desc": "Benign intracranial hypertension"},
+    "Hyponatremia": {"code": "E87.1", "desc": "Hypo-osmolality and hyponatremia"},
+    "Vitamin B12 Deficiency": {"code": "E53.8", "desc": "Deficiency of other specified B group vitamins"},
+    "Cervical Radiculopathy": {"code": "M54.12", "desc": "Radiculopathy, cervical region"},
+    "Hyperthyroidism": {"code": "E05.90", "desc": "Thyrotoxicosis, unspecified without thyrotoxic crisis or storm"},
+    "Drug-induced Tremor": {"code": "G25.1", "desc": "Drug-induced tremor"},
+    "Pituitary Tumor": {"code": "D35.2", "desc": "Benign neoplasm of pituitary gland"},
+    "Migraine with Aura": {"code": "G43.109", "desc": "Migraine with aura, not intractable, without status migrainosus"},
+    "Temporal Arteritis": {"code": "M31.5", "desc": "Giant cell arteritis with polymyalgia rheumatica"},
+    "Stroke": {"code": "I64", "desc": "Stroke, not specified as hemorrhage or infarction"},
+    "Posterior Circulation Stroke": {"code": "I63.9", "desc": "Cerebral infarction, unspecified"},
+    "Vestibular Migraine": {"code": "G43.801", "desc": "Vestibular migraine, not intractable, without status migrainosus"},
+    "Cerebellar Stroke": {"code": "I63.9", "desc": "Cerebral infarction, unspecified"},
+    "Orthostatic Hypotension": {"code": "I95.1", "desc": "Orthostatic hypotension"},
+    "Hepatic Encephalopathy": {"code": "K72.90", "desc": "Hepatic failure, unspecified without coma"},
+    "Seizure Post-ictal": {"code": "R56.8", "desc": "Other and unspecified convulsions"},
+    "Wernicke-Korsakoff Syndrome": {"code": "F10.26", "desc": "Alcohol dependence with alcohol-induced persisting amnestic disorder"},
+    "Hypothyroidism": {"code": "E03.9", "desc": "Hypothyroidism, unspecified"},
+    "Cervical Spondylosis": {"code": "M47.812", "desc": "Spondylosis without myelopathy or radiculopathy, cervical region"},
+    "Cerebral Malaria": {"code": "B50.0", "desc": "Plasmodium falciparum malaria with cerebral complications"},
+    "Lyme Disease": {"code": "A69.20", "desc": "Lyme disease, unspecified"},
+    "Brainstem Stroke": {"code": "I63.9", "desc": "Cerebral infarction, unspecified"},
+    "Cavernous Sinus Thrombosis": {"code": "G08", "desc": "Intracranial and intraspinal phlebitis and thrombophlebitis"},
+    "Third Nerve Palsy": {"code": "H49.00", "desc": "Third [oculomotor] nerve palsy, unspecified eye"},
+    "Spinal Muscular Atrophy": {"code": "G12.9", "desc": "Spinal muscular atrophy, unspecified"},
+    "Electrolyte Imbalance": {"code": "E87.8", "desc": "Other disorders of electrolyte and fluid balance, not elsewhere classified"},
+    "Motor Neuron Disease": {"code": "G12.20", "desc": "Motor neuron disease, unspecified"},
+    "Tardive Dyskinesia": {"code": "G24.01", "desc": "Drug induced subacute dyskinesia"},
+    "Sydenham Chorea": {"code": "I02.0", "desc": "Rheumatic chorea with heart involvement"},
+    "Drug-induced Movement Disorder": {"code": "G25.70", "desc": "Drug induced movement disorder, unspecified"},
+    "Cardiac Syncope": {"code": "R55", "desc": "Syncope and collapse"},
+    "Basilar Migraine": {"code": "G43.109", "desc": "Migraine with aura, not intractable, without status migrainosus"},
 }
 
 
@@ -125,62 +156,85 @@ class GraphRAGService:
 
     def __init__(self, use_neo4j: bool = False):
         """
-                初始化服务。
-                参数:
-                    use_neo4j: 是否尝试连接 Neo4j。即使设为 True，连接失败也会自动降级（fallback）。
-                """
-        self.use_neo4j = use_neo4j  # 标记是否期望使用 Neo4j
-        self._driver = None  # 保存 Neo4j 异步驱动实例，连接成功后赋值
+        初始化服务。
+        参数:
+            use_neo4j: 是否尝试连接 Neo4j。即使设为 True，连接失败也会自动降级（fallback）。
+        """
+        self.use_neo4j = use_neo4j
+        self._driver = None
 
 
     async def connect(self):
         """
-                异步连接到 Neo4j 数据库。
-                如果 use_neo4j 为 True，尝试建立连接。
-                如果连接失败，自动将 use_neo4j 置为 False，并记录警告日志，确保服务仍可用。
-                """
+        同步连接到 Neo4j 数据库（使用同步驱动，与 find_diseases_by_symptoms 保持一致）。
+        如果 use_neo4j 为 True，尝试建立连接并验证连通性。
+        连接失败则自动降级为离线模式。
+        """
         if self.use_neo4j:
             try:
-                # 尝试导入 Neo4j 异步驱动（需要安装 neo4j 包）
-                from neo4j import AsyncGraphDatabase
+                from neo4j import GraphDatabase
                 settings = get_settings()
-                # 创建异步驱动对象，传入 URI 和认证信息（用户名、密码）
-                self._driver = AsyncGraphDatabase.driver(
+                self._driver = GraphDatabase.driver(
                     settings.neo4j_uri,
                     auth=(settings.neo4j_user, settings.neo4j_password),
                 )
+                self._driver.verify_connectivity()
                 logger.info("graphrag.neo4j_connected")
-            # 连接失败，记录警告，关闭 Neo4j 模式，后续请求将使用离线映射表
             except Exception as e:
                 logger.warning("graphrag.neo4j_fallback", error=str(e))
                 self.use_neo4j = False
+                self._driver = None
 
     def find_diseases_by_symptoms(self, symptoms: list[str]) -> list[dict]:
         """
-        根据症状列表查找候选疾病（离线模式）。
-        算法：
-        1. 遍历每个症状，标准化为小写并替换空格为下划线，使其匹配 SYMPTOM_DISEASE_MAP 的键。
-        2. 对于每个匹配的症状，将其关联的疾病列表取出，并在疾病计数字典中累加出现次数。
-        3. 按出现次数降序排列，得分越高说明疾病匹配的症状越多，可能性越大。
-        4. 为每个疾病附加 ICD-10 编码及描述信息（从 DISEASE_ICD10_MAP 中查找）。
+        根据症状列表查找候选疾病（双模式：Neo4j 优先，离线兜底）。
+
+        Neo4j 模式：一条 Cypher 完成 Symptom→Disease→ICD10Code 三跳查询。
+        离线模式：使用内置 SYMPTOM_DISEASE_MAP 投票计数 + DISEASE_ICD10_MAP 补全编码。
 
         返回:
             列表，每项包含 disease, symptom_match_count, icd10_code, icd10_description。
         """
+        if self.use_neo4j and self._driver:
+            try:
+                return self._find_diseases_neo4j(symptoms)
+            except Exception as e:
+                logger.warning("graphrag.neo4j_query_failed_fallback", error=str(e))
+        return self._find_diseases_offline(symptoms)
+
+    def _find_diseases_neo4j(self, symptoms: list[str]) -> list[dict]:
+        """使用 Cypher 在 Neo4j 中执行 Symptom→Disease→ICD10Code 三跳查询。"""
+        normalized = [s.lower().replace(" ", "_") for s in symptoms]
+        with self._driver.session() as session:
+            result = session.run(
+                "MATCH (s:Symptom)-[:INDICATES]->(d:Disease) "
+                "WHERE s.name IN $symptoms "
+                "OPTIONAL MATCH (d)-[:HAS_CODE]->(c:ICD10Code) "
+                "RETURN d.name AS disease, c.code AS icd10_code, c.description AS icd10_desc, "
+                "COUNT(DISTINCT s) AS symptom_match_count "
+                "ORDER BY symptom_match_count DESC",
+                symptoms=normalized,
+            )
+            results = []
+            for record in result:
+                data = record.data()
+                if data.get("icd10_code") is None:
+                    data["icd10_code"] = ""
+                if data.get("icd10_desc") is None:
+                    data["icd10_desc"] = ""
+                results.append(data)
+            return results
+
+    def _find_diseases_offline(self, symptoms: list[str]) -> list[dict]:
+        """离线模式：使用内置 SYMPTOM_DISEASE_MAP 投票计数。"""
         disease_scores: dict[str, int] = {}
-        # 遍历给出的症状列表
         for symptom in symptoms:
             key = symptom.lower().replace(" ", "_")
-            # 获取该症状对应的疾病列表（如果存在）
             for disease in SYMPTOM_DISEASE_MAP.get(key, []):
-                # 累加得分：disease_scores.get(disease, 0) 获取当前计数（默认为0），再加1
                 disease_scores[disease] = disease_scores.get(disease, 0) + 1
-
-        # 按得分降序排序，返回 (disease, score) 元组列表
         ranked = sorted(disease_scores.items(), key=lambda x: x[1], reverse=True)
         results = []
         for disease, score in ranked:
-            # 获取该疾病的 ICD-10 信息，若缺失则返回空字典
             icd = DISEASE_ICD10_MAP.get(disease, {})
             results.append({
                 "disease": disease,
@@ -197,26 +251,20 @@ class GraphRAGService:
         """
         return DISEASE_ICD10_MAP.get(disease_name)
 
-    async def query_neo4j(self, cypher: str, params: dict = None) -> list[dict]:
-        """
-        在 Neo4j 中执行 Cypher 查询（生产模式）。
-        Cypher 是 Neo4j 的查询语言，类似 SQL 但专用于图。
-        该方法要求已通过 connect() 建立连接。
-        若 driver 未初始化，记录警告并返回空列表。
-        """
+    def query_neo4j(self, cypher: str, params: dict = None) -> list[dict]:
+        """在 Neo4j 中执行 Cypher 查询（同步）。若 driver 未初始化则降级返回空列表。"""
         if not self._driver:
             logger.warning("graphrag.neo4j_not_connected")
             return []
-        # 使用异步会话执行查询
-        async with self._driver.session() as session:
-            result = await session.run(cypher, params or {})
-            # 将每条记录转换为字典，并异步收集为列表
-            return [record.data() async for record in result]
+        with self._driver.session() as session:
+            result = session.run(cypher, params or {})
+            return [record.data() for record in result]
 
-    async def close(self):
+    def close(self):
         """关闭 Neo4j 驱动连接，释放资源。"""
         if self._driver:
-            await self._driver.close()
+            self._driver.close()
+            self._driver = None
 
 # =============================================================================
 # 单例模式：全局唯一的 GraphRAGService 实例
@@ -228,12 +276,13 @@ _service: Optional[GraphRAGService] = None
 
 def get_graphrag_service() -> GraphRAGService:
     """
-        获取全局唯一的 GraphRAGService 实例（单例模式）。
-        第一次调用时创建实例（默认离线模式），后续调用直接返回已有实例。
-        这样可确保整个应用共享同一个 Neo4j 连接（如果需要）和缓存。
-        """
-    # 声明要修改模块全局变量
+    获取全局唯一的 GraphRAGService 实例（单例模式）。
+    读取配置中的 neo4j_password：有值则自动启用 Neo4j 模式，否则使用离线字典。
+    """
     global _service
     if _service is None:
-        _service = GraphRAGService(use_neo4j=False)
+        settings = get_settings()
+        use_neo4j = bool(settings.neo4j_password)
+        _service = GraphRAGService(use_neo4j=use_neo4j)
+        logger.info("graphrag.mode", use_neo4j=use_neo4j)
     return _service

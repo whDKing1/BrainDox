@@ -17,6 +17,7 @@ from langchain_openai import ChatOpenAI
 
 from ..config.settings import get_settings
 from ..graph.state import MAX_DIAGNOSIS_RETRIES
+from ..services.graphrag_service import get_graphrag_service
 
 logger = structlog.get_logger(__name__)
 
@@ -64,6 +65,37 @@ Rules:
 - Return ONLY valid JSON, no markdown fences."""
 
 
+def _extract_symptom_names(patient_info: dict) -> list[str]:
+    """从 patient_info 字典中提取症状名称列表，供 GraphRAG 检索使用。"""
+    names = []
+    # 从 symptoms 列表中提取每个症状的 name 字段
+    for symptom in patient_info.get("symptoms", []):
+        if isinstance(symptom, dict) and symptom.get("name"):
+            names.append(symptom["name"])
+    # 如果有 chief_complaint，也作为症状线索加入
+    chief = patient_info.get("chief_complaint", "")
+    if chief and chief not in names:
+        names.append(chief)
+    return names
+
+
+def _format_graphrag_context(candidate_diseases: list[dict]) -> str:
+    """将 GraphRAG 检索到的候选疾病格式化为 LLM 可读的参考上下文。"""
+    lines = [
+        "=== Knowledge Graph Reference (GraphRAG) ===",
+        "The following diseases are highly associated with the patient's symptoms, ranked by symptom match count. Please prioritize these in your differential diagnosis:\n",
+    ]
+    for i, cd in enumerate(candidate_diseases, 1):
+        line = f"{i}. {cd['disease']} (matched {cd['symptom_match_count']} symptom(s))"
+        if cd.get("icd10_code"):
+            line += f" — ICD-10: {cd['icd10_code']}"
+        if cd.get("icd10_description"):
+            line += f", {cd['icd10_description']}"
+        lines.append(line)
+    lines.append("\n=== End of Knowledge Graph Reference ===")
+    return "\n".join(lines)
+
+
 def diagnosis_agent(state) -> dict:
     """
     LangGraph node: Generate differential diagnosis from patient info.
@@ -99,19 +131,39 @@ def diagnosis_agent(state) -> dict:
     )
 
     # -------------------------------------------------------------------------
-    # 3. 准备 LLM 输入
+    # 3. GraphRAG 知识图谱检索：从症状提取候选疾病
     # -------------------------------------------------------------------------
-    # 将患者信息字典转换为格式化的 JSON 字符串，方便 LLM 阅读。
-    # indent=2：添加 2 个空格的缩进，使 JSON 美观易读。
-    # ensure_ascii=False：允许输出非 ASCII 字符（如中文、特殊符号），
-    # 否则 JSON 会将它们转义为 \uXXXX，影响 LLM 理解。
-    patient_summary = json.dumps(patient_info, indent=2, ensure_ascii=False)
+    # 从 patient_info 中提取症状名称列表，调用 GraphRAG 服务的
+    # find_diseases_by_symptoms() 方法，获取按匹配度排序的候选疾病。
+    # 这些候选疾病将作为 LLM 的参考信息注入 Prompt，引导 LLM 重点关注
+    # 知识图谱中与患者症状高度关联的疾病，减少幻觉和遗漏。
+    symptom_names = _extract_symptom_names(patient_info)
+    graphrag_context = ""
+    if symptom_names:
+        graphrag_service = get_graphrag_service()
+        candidate_diseases = graphrag_service.find_diseases_by_symptoms(symptom_names)
+        if candidate_diseases:
+            graphrag_context = _format_graphrag_context(candidate_diseases)
+            logger.info(
+                "diagnosis_agent.graphrag_hits",
+                symptom_count=len(symptom_names),
+                candidate_count=len(candidate_diseases),
+                top3=[d["disease"] for d in candidate_diseases[:3]],
+            )
 
+    # -------------------------------------------------------------------------
+    # 4. 准备 LLM 输入
+    # -------------------------------------------------------------------------
+    patient_summary = json.dumps(patient_info, indent=2, ensure_ascii=False)
+    # 构建 HumanMessage：如果有 GraphRAG 候选疾病，在患者信息前插入参考上下文，
+    # 明确告诉 LLM 这些是知识图谱检索出的高关联疾病，请重点考虑。
+    human_content = ""
+    if graphrag_context:
+        human_content += f"{graphrag_context}\n\n"
+    human_content += f"Patient information:\n\n{patient_summary}\n\nProvide your differential diagnosis."
     messages = [
         SystemMessage(content=DIAGNOSIS_SYSTEM_PROMPT),
-        HumanMessage(
-            content=f"Patient information:\n\n{patient_summary}\n\nProvide your differential diagnosis."
-        ),
+        HumanMessage(content=human_content),
     ]
 
     try:

@@ -1,16 +1,25 @@
 """
 Neo4j 知识图谱种子数据导入脚本
 
-将 graphrag_service.py 中的 SYMPTOM_DISEASE_MAP 和 DISEASE_ICD10_MAP
-导入 Neo4j，构建三节点链式图结构：
+将 graphrag_service.py 中的 SYMPTOM_DISEASE_MAP、SYMPTOM_WEIGHTS、
+SYMPTOM_ALIASES 和 DISEASE_ICD10_MAP 导入 Neo4j，构建三节点链式图结构：
 
     (:Symptom) -[:INDICATES]-> (:Disease) -[:HAS_CODE]-> (:ICD10Code)
+
+新增改进：
+  - Symptom 节点增加 aliases 属性（同义词列表）
+  - INDICATES 关系增加 weight 属性（0.0-1.0 关联强度）
 
 运行时自动从 .env 读取 Neo4j 连接配置。
 使用 MERGE 避免重复创建，可安全多次执行。
 """
 from neo4j import GraphDatabase
-from src.services.graphrag_service import SYMPTOM_DISEASE_MAP, DISEASE_ICD10_MAP
+from src.services.graphrag_service import (
+    SYMPTOM_DISEASE_MAP,
+    SYMPTOM_WEIGHTS,
+    SYMPTOM_ALIASES,
+    DISEASE_ICD10_MAP,
+)
 from src.config.settings import get_settings
 
 
@@ -50,11 +59,13 @@ def seed_knowledge_graph():
             disease_count += 1
             icd10_count += 1 if code else 0
 
-        # ── 2. 创建 Symptom 节点 + INDICATES 关系 ──
+        # ── 2. 创建 Symptom 节点（含同义词）+ INDICATES 关系（含权重） ──
         for symptom_name, diseases in SYMPTOM_DISEASE_MAP.items():
+            aliases = SYMPTOM_ALIASES.get(symptom_name, [])
             session.run(
-                "MERGE (s:Symptom {name: $symptom_name})",
-                symptom_name=symptom_name,
+                "MERGE (s:Symptom {name: $symptom_name}) "
+                "SET s.aliases = $aliases",
+                symptom_name=symptom_name, aliases=aliases,
             )
             symptom_count += 1
             for disease_name in diseases:
@@ -63,21 +74,23 @@ def seed_knowledge_graph():
                     "MERGE (d:Disease {name: $disease_name})",
                     disease_name=disease_name,
                 )
+                weight = SYMPTOM_WEIGHTS.get((symptom_name, disease_name), 1.0)
                 result = session.run(
                     "MATCH (s:Symptom {name: $symptom_name}) "
                     "MATCH (d:Disease {name: $disease_name}) "
-                    "MERGE (s)-[:INDICATES]->(d) "
+                    "MERGE (s)-[r:INDICATES]->(d) "
+                    "SET r.weight = $weight "
                     "RETURN count(*) AS created",
-                    symptom_name=symptom_name, disease_name=disease_name,
+                    symptom_name=symptom_name, disease_name=disease_name, weight=weight,
                 )
                 indicates_count += 1
 
     driver.close()
     # ── 汇总 ──
-    print(f"✅ Symptom nodes:  {symptom_count}")
+    print(f"✅ Symptom nodes:  {symptom_count} (含 aliases)")
     print(f"✅ Disease nodes:  {disease_count}")
     print(f"✅ ICD10Code nodes: {icd10_count}")
-    print(f"✅ INDICATES edges: {indicates_count}")
+    print(f"✅ INDICATES edges: {indicates_count} (含 weight)")
 
 
 if __name__ == "__main__":

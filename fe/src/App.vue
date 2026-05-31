@@ -383,13 +383,39 @@ function formatPrefix(item: string): string {
                 @click="selectCandidateDisease(cd.disease)"
               >
                 <div class="candidate-header">
-                  <div class="candidate-index">{{ i + 1 }}</div>
-                  <div class="candidate-name">{{ cd.disease }}</div>
-                  <div class="candidate-icd" v-if="cd.icd10_code">{{ cd.icd10_code }}</div>
-                  <div class="candidate-match">匹配 {{ cd.symptom_match_count }}/{{ cd.total_symptoms }}</div>
-                </div>
+                    <div class="candidate-index">{{ i + 1 }}</div>
+                    <div class="candidate-name">{{ cd.disease }}</div>
+                    <div class="candidate-icd" v-if="cd.icd10_code">{{ cd.icd10_code }}</div>
+                    <div class="candidate-match">匹配 {{ cd.symptom_match_count }}/{{ cd.total_symptoms }}</div>
+                  </div>
 
-                <!-- 图检索路径 -->
+                  <!-- 加权评分 -->
+                  <div class="score-bar" v-if="cd.weighted_score !== undefined">
+                    <div class="score-row">
+                      <span class="score-label">加权评分</span>
+                      <span class="score-value">{{ cd.weighted_score.toFixed(2) }}</span>
+                    </div>
+                    <div class="score-track">
+                      <div class="score-fill" :style="{ width: Math.min(cd.weighted_score / 3 * 100, 100) + '%' }"></div>
+                    </div>
+                  </div>
+
+                  <!-- 匹配详情（权重 + IDF） -->
+                  <div class="match-details" v-if="cd.match_details && cd.match_details.length">
+                    <div class="md-label">匹配贡献明细</div>
+                    <div class="md-grid">
+                      <div v-for="(md, mi) in cd.match_details" :key="mi" class="md-item">
+                        <span class="md-symptom">{{ md.symptom }}</span>
+                        <span class="md-nums">
+                          w={{ md.weight.toFixed(1) }} × idf={{ md.idf.toFixed(2) }}
+                          <span class="md-eq">=</span>
+                          <span class="md-contribution">{{ md.contribution.toFixed(2) }}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 图检索路径 -->
                 <div class="graph-path" v-if="cd.matched_symptoms && cd.matched_symptoms.length">
                   <div class="path-label">图检索路径</div>
                   <div class="path-chain">
@@ -872,6 +898,89 @@ body {
   color: #94a3b8;
   margin-left: auto;
 }
+
+/* 加权评分条 */
+.score-bar {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: rgba(99, 102, 241, 0.04);
+  border-radius: 6px;
+}
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.score-label {
+  font-size: 10px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.score-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #818cf8;
+}
+.score-track {
+  height: 3px;
+  background: #1e293b;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.score-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* 匹配贡献明细 */
+.match-details {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: rgba(34, 197, 94, 0.03);
+  border-radius: 6px;
+  border: 1px solid rgba(34, 197, 94, 0.08);
+}
+.md-label {
+  font-size: 10px;
+  color: #4ade80;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.md-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.md-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+.md-symptom {
+  color: #94a3b8;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.md-nums {
+  color: #64748b;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+}
+.md-eq {
+  color: #475569;
+  margin: 0 2px;
+}
+.md-contribution {
+  color: #4ade80;
+  font-weight: 600;
+}
+
 .graph-path {
   margin-bottom: 12px;
   padding: 10px;

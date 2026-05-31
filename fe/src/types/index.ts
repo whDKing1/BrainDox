@@ -34,7 +34,14 @@ export interface AnalyzeResponse {
     icd10_description: string
     symptom_match_count: number
     total_symptoms: number
+    weighted_score: number
     matched_symptoms: string[]
+    match_details: Array<{
+      symptom: string
+      weight: number
+      idf: number
+      contribution: number
+    }>
   }>
   human_review_status: string
   selected_disease: string

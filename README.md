@@ -12,6 +12,7 @@
 <p align="center">
   <a href="#-核心流程">核心流程</a> •
   <a href="#-架构全景">架构全景</a> •
+  <a href="#-GraphRAG-检索机制">GraphRAG 检索机制</a> •
   <a href="#-核心功能">核心功能</a> •
   <a href="#-人机协同流程">人机协同</a> •
   <a href="#-API-文档">API 文档</a> •
@@ -24,7 +25,7 @@
   <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
   <img src="https://img.shields.io/badge/DeepSeek-V4-4F46E5?style=for-the-badge" alt="DeepSeek">
   <img src="https://img.shields.io/badge/Vue_3-4.x-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" alt="Vue 3">
-  <img src="https://img.shields.io/badge/GraphRAG-知识图谱-005682?style=for-the-badge" alt="GraphRAG">
+  <img src="https://img.shields.io/badge/GraphRAG-加权检索-005682?style=for-the-badge" alt="GraphRAG">
   <img src="https://img.shields.io/badge/ICD-10-F00-F99-FF6B6B?style=for-the-badge" alt="ICD-10">
   <img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT">
 </p>
@@ -37,7 +38,7 @@
 
 ## 🎯 项目定位
 
-> **BrainDox** 是一个面向精神科临床场景的**多 Agent 决策辅助系统**，覆盖 **接诊 → 诊断 → 治疗 → 编码 → 审计** 全流程。
+> **BrainDox** 是一个面向精神科临床场景的 **多 Agent 决策辅助系统**，覆盖 **接诊 → 诊断 → 治疗 → 编码 → 审计** 全流程。
 >
 > 核心设计哲学：**知识图谱做精确检索 → LLM 做深度推理 → 医生做最终决策**，三者互补，形成闭环。
 
@@ -45,20 +46,20 @@
 
 | 痛点 | 传统方式 | BrainDox 方案 |
 |:---|:---|:---|
-| **精神科诊断高度依赖经验** | 年轻医生容易漏诊、误诊 | GraphRAG 检索 top3 候选 + LLM DSM-5 证据链分析 |
-| **诊疗方案选择困难** | 查阅指南耗时，容易遗漏 | AI 推荐循证治疗方案，支持动态调整 |
+| **精神科诊断高度依赖经验** | 年轻医生容易漏诊、误诊 | GraphRAG 加权检索 top3 候选 + LLM DSM-5 证据链分析 |
+| **诊疗方案选择困难** | 查阅指南耗时，容易遗漏 | AI 推荐循证治疗方案，支持医生选择后的动态调整 |
 | **病历书写与编码繁琐** | 手动填写，容易出错 | ICD-10 自动编码 + DRG 分组 |
-| **诊断不确定性** | 黑盒输出，医生不敢信 | 图路径+推理链全透明展示，医生最终决策 |
+| **诊断不确定性** | 黑盒输出，医生不敢信 | 图路径+加权评分+推理链全透明展示，医生最终决策 |
 
 ### 与纯自动化 Agent 方案的本质区别
 
 ```
-纯自动化 Agent：
+纯自动化 Agent:
   [输入] → LLM 诊断 → LLM 治疗 → [输出]
             ↑ 黑盒，医生只能接受
 
-BrainDox（人机协同）：
-  [输入] → GraphRAG 检索 → LLM 分析 → 医生选择 → 动态治疗 → [输出]
+BrainDox（人机协同）:
+  [输入] → GraphRAG 加权检索 → LLM 分析 → 医生选择 → 动态治疗 → [输出]
                                    ↑
                           透明可解释，医生全程可控
 ```
@@ -88,7 +89,7 @@ BrainDox（人机协同）：
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│  🩺 精神科临床决策                   场景：[初诊 ▼]      │
+│  🧠 精神科临床决策                   场景：[初诊 ▼]      │
 ├───────────────────────────────────────────────────────────┤
 │  主诉 *    情绪低落、兴趣丧失、早醒、体重下降......      │
 │  症状 *    情绪低落, 兴趣丧失, 早醒, 体重下降......      │
@@ -104,52 +105,46 @@ BrainDox（人机协同）：
 
 ### 🃏 第二步：查看 3 个候选诊断卡片
 
-GraphRAG + LLM 给出透明、可解释的诊断分析，每张卡片包含：
+GraphRAG **加权检索** + LLM 给出透明、可解释的诊断分析，每张卡片包含：
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  🩺 GraphRAG 鉴别诊断 — 请选择最可能的诊断                       │
-├───────────────┬─────────────────┬─────────────────────────────────┤
-│               │                 │                                 │
-│     🔴 #1     │     🟡 #2       │      🟢 #3                      │
-│  重性抑郁障碍  │   双相II型障碍  │    广泛性焦虑障碍               │
-│   F32.9       │    F31.81       │     F41.1                       │
-│   匹配度 5/6  │    匹配度 3/6   │     匹配度 2/6                  │
-│               │                 │                                 │
-│  ┌─────────┐  │  ┌───────────┐  │  ┌─────────────────────────┐   │
-│  │图检索路径│  │  │ 图检索路径 │  │  │ 图检索路径             │   │
-│  └─────────┘  │  └───────────┘  │  └─────────────────────────┘   │
-│  情绪低落────┐│  早醒──────┐    │  焦虑─────────────────→ GAD    │
-│  快感缺失──┐││  迟滞────┐│    │                                 │
-│  早醒────┐├┤│  ┌───────┐││    │                                 │
-│  体重下降┐├┤│  │双相II  │││    │                                 │
-│  自杀意念├┤││  └───────┘││    │                                 │
-│  迟滞───┤├┤│           │││    │                                 │
-│  ┌─────┐││││           │││    │                                 │
-│  │ MDD │┘┘┘┘           ┘┘     │                                 │
-│  └─────┘                      │                                 │
-│               │                 │                                 │
-│  📋 支持证据   │  📋 支持证据   │  📋 支持证据                   │
-│  • 情绪低落    │  • 精神运动   │  • 焦虑症状                    │
-│  • 快感缺失    │    性迟滞     │  • 失眠                        │
-│  • 早醒        │  • 早醒       │                                 │
-│  • 体重下降    │  • 自杀意念   │                                 │
-│  • 自杀意念    │                 │                                 │
-│               │                 │                                 │
-│  ⛔ 不支持证据 │  ⛔ 不支持证据  │  ⛔ 不支持证据                 │
-│  (无)          │  • 否认轻躁狂史│  • 缺乏焦虑核心症状           │
-│               │                 │  • 自杀意念非典型              │
-│  🧠 临床推理   │                 │                                 │
-│  核心症状组合  │                 │                                 │
-│  +病程6周      │                 │                                 │
-│  +功能损害     │                 │                                 │
-│  → 符合MDD     │                 │                                 │
-│               │                 │                                 │
-├───────────────┴─────────────────┴─────────────────────────────────┤
-│  已选择：重性抑郁障碍                                               │
-│  │▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸▸│
-│          [✅ 确认诊断，继续治疗方案]                                │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│  🩺 GraphRAG 鉴别诊断 — 请选择最可能的诊断                              │
+├──────────────┬──────────────────┬────────────────────────────────────────┤
+│              │                  │                                        │
+│    🔴 #1     │      🟡 #2       │        🟢 #3                          │
+│ 重性抑郁障碍  │    双相II型障碍  │      广泛性焦虑障碍                    │
+│  F32.9       │     F31.81       │       F41.1                           │
+│  匹配 5/6    │     匹配 3/6     │       匹配 2/6                        │
+│              │                  │                                        │
+│ ┌─────────────────────────┐    │                                        │
+│ │ 加权评分         3.85   │    │                                        │
+│ │ ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░  │    │                                        │
+│ └─────────────────────────┘    │                                        │
+│ ┌ 匹配贡献明细 ─────────┐     │                                        │
+│ │ 情绪低落  w=0.95×idf= │     │                                        │
+│ │ 快感缺失  w=0.90×idf= │     │                                        │
+│ │ 早醒      w=0.60×idf= │     │                                        │
+│ │ 体重下降  w=0.55×idf= │     │                                        │
+│ │ 自杀意念  w=0.75×idf= │     │                                        │
+│ └────────────────────────┘     │                                        │
+│              │                  │                                        │
+│ ┌──────────┐ │  ┌───────────┐  │  ┌────────────────────────────────┐   │
+│ │图检索路径  │  │ 图检索路径  │  │  │ 图检索路径                    │   │
+│ └──────────┘ │  └───────────┘  │  └────────────────────────────────┘   │
+│ 情绪低落────┐│  早醒──────┐    │  焦虑────────→ GAD                     │
+│ 快感缺失──┐││  迟滞────┐│    │                                        │
+│ 早醒────┐├┤│  ┌───────┐││    │                                        │
+│ 体重下降┐├┤│  │双相II │││    │                                        │
+│ 自杀意念├┤││  └───────┘││    │                                        │
+│ 迟滞───┤├┤│           │││    │                                        │
+│ ┌─────┐││││           │││    │                                        │
+│ │ MDD │┘┘┘┘           ┘┘     │                                        │
+│ └─────┘                      │                                        │
+├──────────────┴──────────────────┴────────────────────────────────────────┤
+│  已选择：重性抑郁障碍                                                      │
+│         [✅ 确认诊断，继续治疗方案]                                       │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### ✅ 第三步：医生选择诊断
@@ -179,11 +174,13 @@ GraphRAG + LLM 给出透明、可解释的诊断分析，每张卡片包含：
 │                                  前端 (Vue 3 + Naive UI)                      │
 │  ┌──────────┐  ┌─────────────────────┐  ┌──────────┐  ┌───────────────────┐  │
 │  │ 表单输入  │  │ 候选诊断三列卡片     │  │ 治疗面板  │  │ 编码/审计面板     │  │
+│  │          │  │ + 加权评分条         │  │          │  │                   │  │
+│  │          │  │ + 匹配贡献明细       │  │          │  │                   │  │
 │  └────┬─────┘  └─────────┬───────────┘  └────┬─────┘  └───────────────────┘  │
 │       │                  │                     │                              │
 └───────┼──────────────────┼─────────────────────┼──────────────────────────────┘
         │                  │                     │
-   POST /analyze_form  GET 候选数据        POST /confirm_diagnosis
+   POST /analyze_form  展示候选诊断         POST /confirm_diagnosis
         │                  │                     │
 ┌───────┼──────────────────┼─────────────────────┼──────────────────────────────┐
 │       ▼                  ▼                     ▼                              │
@@ -195,11 +192,6 @@ GraphRAG + LLM 给出透明、可解释的诊断分析，每张卡片包含：
 │  │  /icd10/search, /ddi/check                                             │   │
 │  └───────────────────────────┬────────────────────────────────────────────┘   │
 │                              │                                                │
-│                    ┌─────────▼──────────┐                                    │
-│                    │  _pipeline_instances │ ← MemorySaver 缓存                │
-│                    │  (thread_id → Pipeline)                                 │
-│                    └────────────────────┘                                    │
-│                                                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │           LangGraph Pipeline (StateGraph)                             │   │
 │  │                                                                        │   │
@@ -208,7 +200,7 @@ GraphRAG + LLM 给出透明、可解释的诊断分析，每张卡片包含：
 │  │    └────────┬─────────┘                                               │   │
 │  │             │ 通过                                                     │   │
 │  │    ┌────────▼─────────┐                                               │   │
-│  │    │  Diagnosis Agent │ ← LLM 提取症状 + GraphRAG 检索 + DSM-5 分析  │   │
+│  │    │  Diagnosis Agent │ ← LLM 提取症状 + GraphRAG 加权检索 + DSM-5   │   │
 │  │    └────────┬─────────┘                                               │   │
 │  │             │                                                        │   │
 │  │    ╔════════╧══════════╗                                              │   │
@@ -232,17 +224,23 @@ GraphRAG + LLM 给出透明、可解释的诊断分析，每张卡片包含：
 │                                                                              │
 │  ┌──────────────────────────────────────────────────────────────────────┐   │
 │  │                        服务层                                         │   │
-│  │  ┌─────────────────┐  ┌────────────────┐  ┌──────────────────────┐  │   │
-│  │  │ GraphRAG Service│  │ ICD-10 Service │  │ Drug Interaction Svc│  │   │
-│  │  │ (Neo4j / 离线)   │  │ (PostgreSQL)   │  │ (DDI 检查)          │  │   │
-│  │  └────────┬────────┘  └────────────────┘  └──────────────────────┘  │   │
+│  │  ┌──────────────────────┐  ┌────────────────┐  ┌────────────────┐   │   │
+│  │  │  GraphRAG Service    │  │ ICD-10 Service │  │ Drug Interact │   │   │
+│  │  │  • 加权评分检索       │  │ (PostgreSQL)   │  │ (DDI 检查)    │   │   │
+│  │  │  • IDF 逆文档频率     │  │                │  │                │   │   │
+│  │  │  • 同义词扩展匹配     │  │                │  │                │   │   │
+│  │  │  • 审计日志全链路     │  │                │  │                │   │   │
+│  │  │  • Neo4j / 离线双模  │  │                │  │                │   │   │
+│  │  └────────┬─────────────┘  └────────────────┘  └────────────────┘   │   │
 │  │           │                                                          │   │
-│  │  ┌────────▼────────┐                                                 │   │
-│  │  │ SYMPTOM_        │                                                 │   │
-│  │  │ DISEASE_MAP     │ ← 57 个标准化症状键 → 70+ 精神疾病映射         │   │
-│  │  │ SYMPTOM_ALIAS   │ ← 60+ 中文别名映射（LLM 降级兜底）             │   │
-│  │  │ DISEASE_ICD10   │ ← ICD-10 编码映射表                            │   │
-│  │  └─────────────────┘                                                 │   │
+│  │  ┌────────▼──────────────────────────────┐                          │   │
+│  │  │ 知识库（三层映射体系）                   │                          │   │
+│  │  │  SYMPTOM_DISEASE_MAP  ← 47 键 → 70+ 疾病 │                      │   │
+│  │  │  SYMPTOM_WEIGHTS     ← 150+ 症状-疾病权重 │                      │   │
+│  │  │  SYMPTOM_ALIAS       ← 84 中文别名        │                      │   │
+│  │  │  SYMPTOM_ALIASES     ← 200+ 扩展同义词    │                      │   │
+│  │  │  DISEASE_ICD10_MAP   ← 70+ ICD-10 编码   │                      │   │
+│  │  └───────────────────────────────────────────┘                      │   │
 │  └──────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
 │  ┌──────────────────────────────────────────────────────────────┐          │
@@ -252,215 +250,197 @@ GraphRAG + LLM 给出透明、可解释的诊断分析，每张卡片包含：
 │  │  coding_result | audit_result | errors[]                      │          │
 │  └──────────────────────────────────────────────────────────────┘          │
 │                                                                              │
-│  ┌──────────────────────────────────────────────────────────────┐          │
-│  │  配置层 (.env)                                                 │          │
-│  │  OPENAI_API_KEY | OPENAI_MODEL | OPENAI_BASE_URL             │          │
-│  │  NEO4J_URI | NEO4J_PASSWORD | LOG_LEVEL                      │          │
-│  └──────────────────────────────────────────────────────────────┘          │
+│  ┌──────────────────────────────────────────────────────────────────┐      │
+│  │  外部存储                                                       │      │
+│  │  ┌──────────┐  ┌──────────────┐  ┌────────────┐  ┌───────────┐  │      │
+│  │  │  Neo4j   │  │  PostgreSQL  │  │   Redis    │  │  FHIR     │  │      │
+│  │  │ 图谱数据库│  │ ICD-10/DRG   │  │  缓存      │  │  EHR 接口  │  │      │
+│  │  └──────────┘  └──────────────┘  └────────────┘  └───────────┘  │      │
+│  └──────────────────────────────────────────────────────────────────┘      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### LangGraph 状态图
+### 数据流链路
 
 ```
-                    ┌──────────────┐
-                    │ START (表单)  │
-                    └──────┬───────┘
-                           │
-                    ┌──────▼───────┐
-                    │  sufficiency │
-                    │    _check    │ ← 规则引擎：BLOCK(症状/主诉) vs WARN(风险)
-                    └──────┬───────┘
-                           │
-              ┌────────────┴────────────┐
-              │                         │
-      ┌───────▼───────┐       ┌────────▼────────┐
-      │   diagnosis   │       │      END        │ ← 信息不足阻断
-      │     agent     │       │                 │
-      └───────┬───────┘       └─────────────────┘
-              │
-      ┌───────▼───────┐
-      │   ⏸ HITL     │ ← interrupt_before=["treatment"]
-      │   等待医生选择 │    human_review_status: awaiting_diagnosis
-      └───────┬───────┘
-              │ 医生 POST /confirm_diagnosis → resume
-              │ selected_disease 写入 state
-      ┌───────▼───────┐
-      │   treatment   │ ← 基于 selected_disease 动态调整
-      │    agent      │
-      └───────┬───────┘
-              │
-      ┌───────▼───────┐
-      │    coding     │ ← ICD-10 编码
-      │    agent      │
-      └───────┬───────┘
-              │
-      ┌───────▼───────┐
-      │    audit      │ ← HIPAA 合规
-      │    agent      │
-      └───────┬───────┘
-              │
-         ┌────▼────┐
-         │   END   │
-         └─────────┘
+患者主诉 → LLM 语义提取（唯一模糊环节）
+                ↓  标准化症状键列表
+          三层归一化匹配
+            ↓
+        ┌────────────────────────────────┐
+        │  4层匹配优先级:                  │
+        │  ① SYMPTOM_ALIAS 精确中→英      │
+        │  ② SYMPTOM_ALIASES 同义词扩展    │
+        │  ③ 英文格式化（lower+replace）    │
+        │  ④ SYMPTOM_DISEASE_MAP 键匹配    │
+        └────────────────────────────────┘
+                ↓  归一化后的键
+          加权评分检索
+        score = Σ(weight × IDF)
+                ↓  排序后 top3
+          LLM DSM-5 证据分析
+                ↓
+         医生 HITL 审核选择
+```
+
+### 双模式自动降级
+
+```
+┌─────────────────────────────────────┐
+│         生产模式 (Neo4j)             │
+│  • 图数据库存储节点+关系+权重+同义词  │
+│  • Cypher 三跳查询 (Symptom→Disease)→ICD10│
+│  • SUM(COALESCE(r.weight, 1.0)) 排序  │
+└──────────────┬──────────────────────┘
+               │ 连接失败自动降级
+               ▼
+┌─────────────────────────────────────┐
+│         离线模式 (字典)               │
+│  • Python dict O(1) 精确查找        │
+│  • 加权评分 + IDF 排序              │
+│  • 零依赖，无需外部服务              │
+└─────────────────────────────────────┘
 ```
 
 <br>
 
 ---
 
-## 🧠 核心功能
+## ⚡ GraphRAG 检索机制
 
-### 1. 结构化表单输入
+### 三层语义匹配体系
 
-取代传统的 LLM 自由文本提取方式，医生直接填写结构化表单：
+BrainDox 的检索系统从用户输入到疾病结果，经过**三层匹配 + 加权评分**：
 
-| 字段 | 必填 | 说明 | 前端组件 |
-|:---|:---:|:---|:---:|
-| 主诉 | ✅ | 患者主诉全文，LLM 从中提取症状键 | `<NInput type="textarea">` |
-| 症状 | ✅ | 逗号分隔的症状名称列表 | `<NInput type="textarea">` |
-| 自杀风险评估 | ✅ | 5 级下拉选择（无风险→极高风险） | `<NSelect>` |
-| 物质使用史 | ✅ | 6 种预设选项 | `<NSelect>` |
-| 姓名/年龄/性别 | ❌ | 基本信息 | `<NInput>` / `<NSelect>` |
-| 既往病史/家族史 | ❌ | 逗号分隔 | `<NInput type="textarea">` |
+#### 第一层：LLM 语义提取（唯一模糊环节）
 
-### 2. GraphRAG 知识图谱检索
-
-**双模式架构**：Neo4j 图数据库（生产） / 离线 Python 字典（演示），自动切换、零配置降级。
-
-**检索链路**：
+LLM 从患者主诉中提取标准化症状键，充当"智能翻译器"：
 
 ```
-患者数据 ──→ LLM 提取标准化症状键（方案A）
-                  │
-                  ↓
-          [depressed_mood, anhedonia, insomnia, ...]
-                  │
-                  ↓
-          SYMPTOM_DISEASE_MAP 投票计数
-                  │
-                  ↓
-          MDD (5票) > 双相II (3票) > GAD (2票) > ...
-                  │
-                  ↓
-          返回 top3 候选 + 图路径链 ──→ 前端展示
+"最近心情不好，对什么都没兴趣，睡不着，早醒，想死"
+                         ↓ LLM
+["depressed_mood", "anhedonia", "difficulty_falling_asleep",
+ "early_morning_awakening", "suicidal_ideation"]
 ```
 
-**57 个标准化症状键覆盖**：
+LLM 失败后自动降级到规则方法。
+
+#### 第二层：四阶归一化匹配
 
 ```
-心境症状:    depressed_mood, anhedonia, mania, hypomania, elevated_mood, irritability
-焦虑症状:    anxiety, panic_attack, hypervigilance
-精神病性症状: auditory_hallucination, visual_hallucination, delusion, paranoia, disorganized_speech
-失眠症状:    insomnia, difficulty_falling_asleep, middle_insomnia, early_morning_awakening, hypersomnia
-躯体症状:    appetite_loss, appetite_increase, weight_loss, weight_gain, fatigue, psychomotor_retardation
-认知症状:    cognitive_decline, memory_loss, inattention, confusion, apathy
-创伤症状:    trauma_flashback, nightmares, dissociation
-强迫症状:    obsession, compulsion
-冲动症状:    impulsivity, self_harm, suicidal_ideation, substance_craving
-社交症状:    social_withdrawal, negative_symptoms
-... 共 57 个
+输入: "情绪低落"
+  ↓ ① SYMPTOM_ALIAS      → "情绪低落" ∈ SYMPTOM_ALIAS      → "depressed_mood" ✓
+输入: "没精神"
+  ↓ ② SYMPTOM_ALIASES    → "没精神" ∈ SYMPTOM_ALIASES       → "fatigue"        ✓
+输入: "Depressed Mood"
+  ↓ ③ 英文格式化         → "depressed_mood" = key            → 直接命中         ✓
+输入: "depressed_mood"
+  ↓ ④ 直接键匹配         → key ∈ SYMPTOM_DISEASE_MAP        → 直接命中         ✓
 ```
 
-如果 LLM 提取失败（API 不可用/余额不足），自动降级到规则别名映射（`SYMPTOM_ALIAS`），不影响流程。
+#### 第三层：加权评分排序
 
-### 3. LLM 鉴别诊断分析
+**评分公式**：
 
-DeepSeek 对每个候选疾病执行独立 DSM-5 标准分析：
-
-```json
-{
-  "candidate_analyses": [
-    {
-      "disease_name": "重性抑郁障碍",
-      "icd10_hint": "F32.9",
-      "confidence": 0.85,
-      "supporting_evidence": [
-        "情绪低落持续6周，符合标准A1",
-        "快感缺失，符合标准A2",
-        "早醒，符合标准A4（睡眠障碍）",
-        "体重下降，符合标准A3（食欲/体重变化）",
-        "被动自杀意念，符合标准A9（死亡念头）",
-        "精神运动性迟滞，符合标准A5",
-        "社会功能下降，符合标准B",
-        "非物质/躯体疾病所致，符合标准C"
-      ],
-      "opposing_evidence": [],
-      "reasoning": "患者满足 DSM-5 MDD 诊断标准 A 中 6/9 项症状（≥5项阈值），包含核心症状情绪低落和快感缺失。病程6周（≥2周阈值），伴显著功能损害（标准B），排除物质/躯体病因（标准C），排除躁狂发作（标准D），排除分裂情感障碍（标准E）。临床表现典型，支持证据充分，无实质性的不支持证据。",
-      "recommended_tests": ["甲状腺功能复查", "维生素B12水平"]
-    }
-  ],
-  "primary_recommendation": {
-    "disease_name": "重性抑郁障碍",
-    "reasoning": "6项DSM-5症状满足，匹配度高，无矛盾证据",
-    "clinical_notes": "重性抑郁障碍，单次发作，中度（F32.1），伴被动自杀意念"
-  },
-  "suicide_risk_assessment": "低风险 - 被动自杀意念，无具体计划，无手段，保护因素存在（家属监护）",
-  "medical_mimics_ruled_out": ["甲状腺功能减退（左甲状腺素替代，TSH正常）"]
-}
+```
+score(disease) = Σ weight(symptom_key, disease) × IDF(symptom_key)
+                 for each matched symptom
 ```
 
-### 4. 人机协同（HITL）
+**权重表**（`SYMPTOM_WEIGHTS`）：
 
-**Pipeline 中断机制**：
+症状-疾病关联强度，基于 DSM-5 诊断标准中的敏感度/特异度：
 
-```python
-# pipeline_compiler.py - 诊断后自动中断
-workflow.compile(
-    checkpointer=checkpointer,
-    interrupt_before=["treatment"],  # ← 在 treatment 前暂停
-)
+| 症状 | 疾病 | 权重 | 说明 |
+|:---|:---|:---:|:---|
+| `depressed_mood` | 重性抑郁障碍 | **0.95** | 核心诊断标准（高度特异） |
+| `depressed_mood` | 适应障碍 | 0.40 | 有抑郁情绪但程度较轻 |
+| `depressed_mood` | 物质所致心境障碍 | 0.25 | 关联弱，需排除物质因素 |
+| `mania` | 双相I型障碍 | **0.95** | 核心诊断标准 |
+| `auditory_hallucination` | 精神分裂症 | **0.90** | 核心诊断标准 |
+| `auditory_hallucination` | 物质所致精神病性障碍 | 0.40 | 需排除物质因素 |
+
+未指定的组合默认权重为 **1.0**，完全向后兼容。
+
+**IDF（逆文档频率）**：
+
+```
+IDF = ln(总疾病数 / 关联该症状的疾病数) + 1
 ```
 
-**医生确认后恢复**：
+| 症状 | 关联疾病数 | IDF | 含义 |
+|:---|:---:|:---:|:---|
+| `depressed_mood` | 5 | 2.64 | 低区分度，很多疾病都有 |
+| `fatigue` | 4 | 2.86 | 中低区分度 |
+| `catatonia` | 3 | 3.15 | 高区分度，特异症状 |
+| `tics` | 3 | 3.15 | 高区分度，高度特异 |
 
-```python
-# routes.py - 诊断确认端点
-pipeline.update_state(config, {
-    "selected_disease": req.selected_disease,
-    "human_review_status": "diagnosis_selected",
-})
-result = pipeline.invoke(None, config=config)  # 恢复执行
+### 完整的检索链路对比
+
+| 版本 | 排序方式 | 区分度 | 可解释性 |
+|:---|:---|:---:|:---:|
+| ❌ 旧版 | `COUNT(matched_symptoms)` | 低——所有症状贡献相等 | 低——只看命中数 |
+| ✅ **新版** | `Σ(weight × IDF)` | **高**——核心症状+罕见症状权重更大 | **高**——w×idf=contribution 全透明 |
+
+<br>
+
+---
+
+## 🎨 核心功能
+
+### GraphRAG 加权知识图谱检索
+
+- **47 个标准化精神科症状键**（覆盖 DSM-5 主要诊断分类）
+- **150+ 条症状-疾病权重映射**（基于 DSM-5 诊断标准敏感度/特异度）
+- **IDF 逆文档频率加权**（罕见症状获得更高权重）
+- **四层归一化匹配**：别名 → 同义词 → 格式化 → 精确键
+- **84 个中文别名 + 200+ 扩展同义词**（LLM 降级后依然高召回）
+- **双模式自动降级**：Neo4j 不可用时无缝切换到离线字典
+- **全链路审计日志**：输入症状 → 归一化键 → IDF 值 → top 结果
+
+### 加权评分可视化
+
+前端卡片展示完整的评分链路：
+
+```
+加权评分         3.85
+▓▓▓▓▓▓▓▓▓░░░░░░░░░
+
+匹配贡献明细
+情绪低落    w=0.95 × idf=2.64 = 2.508
+快感缺失    w=0.90 × idf=2.64 = 2.376
+早醒        w=0.60 × idf=2.64 = 1.584
+体重下降    w=0.55 × idf=2.86 = 1.573
+自杀意念    w=0.75 × idf=2.30 = 1.725
 ```
 
-### 5. 动态治疗方案
+### 多 Agent 协同决策
 
-| 诊断 | 药物治疗 | 心理治疗 | 其他干预 |
-|:---|:---|:---|:---|
-| 重性抑郁障碍 | SSRI（艾司西酞普兰 10mg） | CBT | 运动处方 |
-| 双相II型抑郁 | 拉莫三嗪 + 谨慎使用SSRI | IPSRT | 睡眠节律管理 |
-| 广泛性焦虑障碍 | 帕罗西汀 20mg / 文拉法辛 75mg | CBT（暴露治疗） | 放松训练 |
-| PTSD | 舍曲林 50-200mg / 帕罗西汀 | PE 或 CPT | 安全计划 |
-| 精神分裂症 | 奥氮平 10mg / 利培酮 4mg | 社交技能训练 | 职业康复 |
-
-### 6. ICD-10 自动编码 + DRG 分组
-
-| ICD-10 范围 | 类别 | 示例 |
+| Agent | 职责 | 技术 |
 |:---|:---|:---|
-| F30-F39 | 心境障碍 | F32.9 重性抑郁障碍, F31.81 双相II型障碍 |
-| F40-F48 | 焦虑/应激障碍 | F41.1 广泛性焦虑障碍, F43.10 PTSD |
-| F20-F29 | 精神分裂症谱系 | F20.9 精神分裂症, F25.9 分裂情感性障碍 |
-| F90-F98 | 儿童期起病障碍 | F90.9 ADHD, F84.0 ASD |
-| F60-F69 | 人格障碍 | F60.3 边缘型人格障碍 |
-| F50-F59 | 进食障碍 | F50.01 神经性厌食症 |
+| **Intake Agent** | 结构化患者信息提取 | 规则引擎（表单模式）/ LLM（文本模式） |
+| **Diagnosis Agent** | 鉴别诊断 + GraphRAG 检索 | LLM 提取症状 → 加权图谱检索 → DSM-5 分析 |
+| **Treatment Agent** | 循证治疗方案推荐 | 精神药理学 + 心理治疗 + DDI 检查 |
+| **Coding Agent** | ICD-10 自动编码 | ICD-10 编码映射 + DRG 分组 |
+| **Audit Agent** | HIPAA 合规审计 | PHI 检测 + 合规规则引擎 |
 
-### 7. HIPAA 合规审计
+### Human-in-the-Loop（人机协同）
 
-纯规则引擎，零 LLM 调用，确保 100% 确定性：
+- **诊断中断**：Diagnosis 完成后 Pipeline 自动暂停
+- **医生选择**：从 3 个候选诊断中选择最可能的诊断
+- **动态治疗**：治疗方案根据医生选择的诊断自动调整
+- **审计追溯**：所有 HITL 操作记录到审计日志
 
-```
-合规检查项（8项）：
-  1.  PHI 泄露扫描    → [✅] 无 PHI 泄露
-  2.  静态数据加密     → [✅] 已加密
-  3.  传输数据加密     → [✅] HTTPS
-  4.  RBAC 访问控制    → [✅] 已实施
-  5.  审计日志记录     → [✅] 不可变日志
-  6.  最小必要原则     → [✅] 合规
-  7.  违规通知就绪     → [✅] 已配置
-  8.  数据保留策略     → [✅] 保留6年
-  ─────────────────────────────────
-  总体风险等级：[✅ 低风险]
-```
+### 双模式运行
+
+| 特性 | 生产模式 | 离线模式 |
+|:---|:---|:---|
+| **数据存储** | Neo4j 图数据库 | Python dict（内存） |
+| **查询方式** | Cypher 三跳查询 | O(1) 哈希查找 |
+| **权重支持** | INDICATES 关系 weight 属性 | SYMPTOM_WEIGHTS 字典 |
+| **同义词支持** | Symptom 节点 aliases 属性 | SYMPTOM_ALIASES 字典 |
+| **依赖** | Neo4j 容器 | 无（零依赖） |
+| **降级** | 自动（连接失败） | 始终可用 |
 
 <br>
 
@@ -468,218 +448,86 @@ result = pipeline.invoke(None, config=config)  # 恢复执行
 
 ## 🔄 人机协同流程
 
-### 完整交互时序
-
 ```
- 医生                  前端                  API                 Pipeline
-  │                    │                    │                    │
-  │  填写表单           │                    │                    │
-  │──────────────────>│                    │                    │
-  │                    │  POST /analyze_form│                    │
-  │                    │───────────────────>│                    │
-  │                    │                    │  invoke()          │
-  │                    │                    │───────────────────>│
-  │                    │                    │                    │
-  │                    │                    │    ┌────────────────┤
-  │                    │                    │    │SufficiencyCheck│
-  │                    │                    │    │       ↓        │
-  │                    │                    │    │ Diagnosis     │
-  │                    │                    │    │  Agent        │
-  │                    │                    │    │   LLM提取症状  │
-  │                    │                    │    │   GraphRAG检索 │
-  │                    │                    │    │   DSM-5分析   │
-  │                    │                    │    └───────┬────────┘
-  │                    │                    │            │
-  │                    │                    │    ╔════════╧═══════╗
-  │                    │                    │    ║  HITL 中断     ║
-  │                    │                    │    ║ interrupt_before║
-  │                    │                    │    ╚════════════════╝
-  │                    │                    │                    │
-  │                    │    返回候选诊断     │                    │
-  │                    │<───────────────────│                    │
-  │  展示3张诊断卡片    │                    │                    │
-  │<──────────────────│                    │                    │
-  │                    │                    │                    │
-  │  点击选择MDD       │                    │                    │
-  │──────────────────>│                    │                    │
-  │                    │ POST /confirm_     │                    │
-  │                    │   diagnosis        │                    │
-  │                    │───────────────────>│                    │
-  │                    │                    │ update_state()     │
-  │                    │                    │───────────────────>│
-  │                    │                    │ invoke(None)       │
-  │                    │                    │───────────────────>│
-  │                    │                    │                    │
-  │                    │                    │   ┌────────────────┤
-  │                    │                    │   │  Treatment     │
-  │                    │                    │   │  (基于选择调整)  │
-  │                    │                    │   │     ↓          │
-  │                    │                    │   │  Coding        │
-  │                    │                    │   │     ↓          │
-  │                    │                    │   │  Audit         │
-  │                    │                    │   └───────┬────────┘
-  │                    │                    │            │
-  │                    │    返回完整结果     │            │
-  │                    │<───────────────────│            │
-  │  展示治疗/编码/     │                    │            │
-  │  审计面板           │                    │            │
-  │<──────────────────│                    │            │
-```
-
-### HITL 状态机
-
-```
-         ┌──────────────────────────────────────────────────┐
-         │                                                  │
-         │    init       diagnosis         selected         │
-         │    ────→    ──────────→    ────────────→         │
-         │   none      awaiting_        diagnosis_          │
-         │             diagnosis        selected            │
-         │                                    │             │
-         │                                    ↓             │
-         │                              pending             │
-         │                             /        \           │
-         │                            ↓          ↓          │
-         │                       approved    rejected       │
-         │                                                  │
-         └──────────────────────────────────────────────────┘
+患者表单提交
+     │
+     ▼
+┌───────────────────┐
+│ SufficiencyCheck  │ ← 规则引擎：检查关键字段是否充足
+│ 主诉 ✓ 症状 ✓    │    自杀风险评估 ✓ 物质使用 ✓
+└───────┬───────────┘
+        │ 通过
+        ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Diagnosis Agent                                            │
+│  1. LLM 提取标准化症状键（或规则降级）                        │
+│  2. GraphRAG 加权检索 top3 候选疾病                          │
+│  3. LLM 对每个候选做 DSM-5 证据链分析                        │
+│     - 支持证据 / 不支持证据 / 临床推理                       │
+│     - 置信度评分 / 建议补充检查                              │
+│  4. 设置 human_review_status = "awaiting_diagnosis"          │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                        [⏸ 暂停]
+                            │
+               ┌────────────┴────────────┐
+               │                         │
+         医生查看 3 个候选              AI 错误
+         选择最可能的诊断               调整诊断
+               │                         │
+               └────────────┬────────────┘
+                            │ 确认
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Treatment Agent                                            │
+│  • 基于 selected_disease 生成动态治疗方案                   │
+│  • 精神药理学推荐（SSRI/SNRI/心境稳定剂/抗精神病药等）       │
+│  • 循证心理治疗推荐（CBT/DBT/IPT/ERP 等）                   │
+│  • 药物交互检查（DDI）                                       │
+│  • 住院需求评估                                              │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Coding Agent                                               │
+│  • ICD-10 编码（F00-F99 精神与行为障碍）                     │
+│  • DRG 疾病诊断相关分组                                      │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Audit Agent                                                │
+│  • PHI 检测（姓名/身份证/电话/邮箱等 14 类）                │
+│  • 合规审计报告                                              │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+                            ▼
+                          [END]
 ```
 
 <br>
 
 ---
 
-## 📂 项目结构
+## 🌐 API 文档
 
-```
-📁 BrainDox/
-│
-├── 📁 code/                          # 后端代码（Python + FastAPI）
-│   ├── 📁 src/
-│   │   ├── 📁 api/                   # API 层
-│   │   │   ├── 📄 main.py            # FastAPI 入口 + lifespan
-│   │   │   └── 📄 routes.py          # 所有 REST 端点定义
-│   │   │
-│   │   ├── 📁 agents/                # Agent 层
-│   │   │   ├── 📄 diagnosis_agent.py # 🎯 LLM症状提取 + GraphRAG + DSM-5分析 + HITL
-│   │   │   ├── 📄 treatment_agent.py # 💊 动态治疗方案（基于 selected_disease）
-│   │   │   ├── 📄 coding_agent.py    # 📋 ICD-10 编码 + DRG 分组
-│   │   │   └── 📄 audit_agent.py     # 🔒 HIPAA 合规（纯规则引擎）
-│   │   │
-│   │   ├── 📁 graph/                 # LangGraph 编排层
-│   │   │   ├── 📄 state.py           # ClinicalState（Pydantic 共享状态）
-│   │   │   └── 📄 pipeline_compiler.py # StateGraph 编译 + HITL interrupt_before
-│   │   │
-│   │   ├── 📁 services/              # 服务层
-│   │   │   ├── 📄 graphrag_service.py # 🧠 GraphRAG 检索 + SYMPTOM_DISEASE_MAP + SYMPTOM_ALIAS
-│   │   │   ├── 📄 drug_interaction.py # 💊 DDI 药物交互检查
-│   │   │   ├── 📄 icd10_service.py   # 📋 ICD-10 搜索服务
-│   │   │   └── 📄 hipaa_service.py   # 🔒 PHI 脱敏 + 合规检查
-│   │   │
-│   │   ├── 📁 models/                # 数据模型
-│   │   │   ├── 📄 patient.py         # PatientInfo, Gender（含 _missing_ 钩子）
-│   │   │   └── 📄 diagnosis.py       # DiagnosisResult
-│   │   │
-│   │   ├── 📁 config/
-│   │   │   └── 📄 settings.py        # .env 配置读取
-│   │   │
-│   │   └── 📁 __init__.py
-│   │
-│   ├── 📄 .env                       # 环境变量（API Key、数据库配置）
-│   └── 📄 requirements.txt           # Python 依赖
-│
-├── 📁 fe/                            # 前端代码（Vue 3 + Naive UI）
-│   ├── 📁 src/
-│   │   ├── 📄 App.vue                # 🏠 主组件：表单 + 候选卡片 + 治疗/编码/审计面板
-│   │   │
-│   │   ├── 📁 api/
-│   │   │   └── 📄 index.ts           # API 客户端（analyzeForm + confirmDiagnosis）
-│   │   │
-│   │   ├── 📁 types/
-│   │   │   └── 📄 index.ts           # TypeScript 类型定义
-│   │   │
-│   │   ├── 📁 components/            # 子组件
-│   │   │   ├── 📄 PipelineStepper.vue # 步骤进度条
-│   │   │   ├── 📄 TreatmentPanel.vue  # 治疗方案展示
-│   │   │   ├── 📄 CodingPanel.vue     # ICD-10 编码展示
-│   │   │   └── 📄 AuditPanel.vue      # 合规审计展示
-│   │   │
-│   │   └── 📄 test-data.ts           # 初诊/复诊测试用例
-│   │
-│   ├── 📄 vite.config.ts             # Vite 配置（proxy → 后端）
-│   └── 📄 package.json
-│
-├── 📄 README.md                      # 📄 本文件
-└── 📄 LICENSE                        # MIT 许可证
-```
+完整 API 文档在启动后访问：**[http://localhost:8001/docs](http://localhost:8001/docs)**（Swagger UI）
 
-<br>
+### 核心端点
 
----
+| 端点 | 功能 | HITL |
+|:---|:---|:---:|
+| `POST /api/v1/clinical/analyze_form` | 表单模式分析 | ✅ 自动暂停 |
+| `POST /api/v1/clinical/confirm_diagnosis` | 医生确认诊断 | ✅ 恢复 Pipeline |
+| `POST /api/v1/clinical/analyze` | 文本模式分析 | 可选 |
+| `POST /api/v1/clinical/icd10/search` | ICD-10 搜索 | - |
+| `GET /api/v1/clinical/icd10/{code}` | ICD-10 查询 | - |
+| `POST /api/v1/clinical/ddi/check` | 药物交互检查 | - |
+| `GET /health` | 健康检查 | - |
 
-## 💻 技术栈
+### 请求/响应示例
 
-<p align="center">
-  <table>
-    <tr>
-      <td align="center" width="120">
-        <img src="https://skillicons.dev/icons?i=python" width="40"><br>
-        <sub>Python 3.11</sub>
-      </td>
-      <td align="center" width="120">
-        <img src="https://skillicons.dev/icons?i=fastapi" width="40"><br>
-        <sub>FastAPI</sub>
-      </td>
-      <td align="center" width="120">
-        <img src="https://skillicons.dev/icons?i=vue" width="40"><br>
-        <sub>Vue 3</sub>
-      </td>
-      <td align="center" width="120">
-        <img src="https://skillicons.dev/icons?i=ts" width="40"><br>
-        <sub>TypeScript</sub>
-      </td>
-      <td align="center" width="120">
-        <img src="https://skillicons.dev/icons?i=neo4j" width="40"><br>
-        <sub>Neo4j</sub>
-      </td>
-      <td align="center" width="120">
-        <img src="https://skillicons.dev/icons?i=vite" width="40"><br>
-        <sub>Vite</sub>
-      </td>
-    </tr>
-  </table>
-</p>
-
-| 层次 | 技术选型 | 用途 |
-|:---|:---|:---|
-| **🎯 LLM 推理** | DeepSeek V4 | 症状提取（temperature=0.0，确定性）、诊断分析（temperature=0.2，创造性） |
-| **🔗 Pipeline 编排** | LangGraph 0.2+ | StateGraph + 条件路由 + `interrupt_before` HITL |
-| **🌐 API 服务** | FastAPI 0.115+ | RESTful API + Swagger 文档 + 自动校验 |
-| **🧠 知识图谱** | Neo4j 5.x / 离线字典 | 症状→疾病双模式检索，自动降级 |
-| **🎨 前端** | Vue 3 + Naive UI | 表单输入 → 候选三列卡片 → 治疗/编码/审计面板 |
-| **📦 数据校验** | Pydantic v2 | ClinicalState 共享状态 + 请求/响应模型 |
-| **💾 状态持久化** | MemorySaver | Pipeline 中断/恢复，_pipeline_instances 缓存 |
-| **🐍 包管理** | UV | 快速虚拟环境 + 依赖安装 |
-| **🔧 开发工具** | Vite | 前端热重载开发服务器 + 代理转发 |
-
-<br>
-
----
-
-## 📡 API 文档
-
-### 端点总览
-
-| 方法 | 路径 | 说明 | 请求体 / 参数 |
-|:---|:---|:---|:---|
-| <code>POST&nbsp;🚀</code> | `/api/v1/clinical/analyze_form` | **提交表单启动 Pipeline** | `FormAnalyzeRequest` |
-| <code>POST&nbsp;✅</code> | `/api/v1/clinical/confirm_diagnosis` | **医生确认诊断，恢复 Pipeline** | `ConfirmDiagnosisRequest` |
-| <code>POST&nbsp;🔍</code> | `/api/v1/clinical/icd10/search` | ICD-10 文本搜索 | `{query: string}` |
-| <code>GET&nbsp;📋</code> | `/api/v1/clinical/icd10/{code}` | ICD-10 编码查询 | 路径参数 |
-| <code>POST&nbsp;💊</code> | `/api/v1/clinical/ddi/check` | 药物交互检查 | `DrugInteractionRequest` |
-| <code>GET&nbsp;❤️</code> | `/health` | 健康检查 | 无 |
-
-### 1. 表单分析
+#### 1. 表单分析
 
 ```
 POST /api/v1/clinical/analyze_form
@@ -708,8 +556,22 @@ POST /api/v1/clinical/analyze_form
 ```json
 {
   "scenario": "new_visit",
-  "patient_info": { "name": "未填", "age": 25, "gender": "female", ... },
-  "diagnosis": { "candidate_analyses": [...], "primary_recommendation": {...}, ... },
+  "diagnosis": {
+    "candidate_analyses": [
+      {
+        "disease_name": "重性抑郁障碍",
+        "icd10_hint": "F32.9",
+        "confidence": 0.92,
+        "supporting_evidence": ["情绪低落持续6周", "快感缺失", "早醒", "体重下降5%"],
+        "opposing_evidence": [],
+        "reasoning": "核心症状组合+病程>2周+功能损害→符合MDD诊断标准"
+      }
+    ],
+    "primary_recommendation": {
+      "disease_name": "重性抑郁障碍",
+      "reasoning": "5/6症状匹配，加权评分最高"
+    }
+  },
   "candidate_diseases": [
     {
       "disease": "重性抑郁障碍",
@@ -717,7 +579,13 @@ POST /api/v1/clinical/analyze_form
       "icd10_description": "重性抑郁障碍，单次发作，未特定",
       "symptom_match_count": 5,
       "total_symptoms": 6,
-      "matched_symptoms": ["depressed mood", "anhedonia", ...]
+      "weighted_score": 3.85,
+      "matched_symptoms": ["depressed mood", "anhedonia", "early morning awakening", "weight loss", "suicidal ideation"],
+      "match_details": [
+        {"symptom": "depressed mood", "weight": 0.95, "idf": 2.64, "contribution": 2.508},
+        {"symptom": "anhedonia", "weight": 0.90, "idf": 2.64, "contribution": 2.376},
+        {"symptom": "early morning awakening", "weight": 1.0, "idf": 2.64, "contribution": 2.640}
+      ]
     }
   ],
   "human_review_status": "awaiting_diagnosis",
@@ -728,7 +596,7 @@ POST /api/v1/clinical/analyze_form
 }
 ```
 
-### 2. 诊断确认
+#### 2. 诊断确认
 
 ```
 POST /api/v1/clinical/confirm_diagnosis
@@ -745,7 +613,7 @@ POST /api/v1/clinical/confirm_diagnosis
 
 **响应**：完整的 Pipeline 结果（含 `treatment_plan`、`coding_result`、`audit_result`）
 
-### 3. 快速测试
+#### 3. 快速测试
 
 ```powershell
 # PowerShell 测试表单分析
@@ -843,6 +711,28 @@ LOG_LEVEL=INFO
 
 > **注意**：`NEO4J_PASSWORD` 为空时自动使用**离线字典模式**，无需启动 Neo4j 容器即可运行。
 
+### 初始化知识图谱（可选）
+
+如果需要启用 Neo4j 模式并包含权重和同义词：
+
+```bash
+# 1. 启动 Neo4j（Docker）
+docker run -d --name neo4j -p 7687:7687 -e NEO4J_AUTH=neo4j/your-password neo4j:5
+
+# 2. 配置 .env
+# NEO4J_PASSWORD=your-password
+
+# 3. 导入种子数据（含权重、同义词）
+cd code
+uv run python seed_neo4j.py
+
+# ✅ 输出示例：
+#   Symptom nodes:  47 (含 aliases)
+#   Disease nodes:  71
+#   ICD10Code nodes: 66
+#   INDICATES edges: 220+ (含 weight)
+```
+
 <br>
 
 ---
@@ -864,6 +754,24 @@ curl http://localhost:8001/health
 }
 ```
 
+### 运行测试套件
+
+```bash
+cd code
+
+# 运行所有离线测试（无需 Neo4j）
+uv run pytest tests/test_graphrag.py -v -k "offline"
+
+# 运行所有测试（含 Neo4j，需先启动容器）
+uv run pytest tests/test_graphrag.py -v
+
+# 仅运行 Neo4j 测试
+uv run pytest tests/test_graphrag.py -v -k "neo4j"
+
+# 运行服务层测试
+uv run pytest tests/test_services.py -v
+```
+
 ### 完整的端到端测试
 
 ```powershell
@@ -878,8 +786,13 @@ $response = Invoke-RestMethod -Uri "http://localhost:8001/api/v1/clinical/analyz
         "thread_id": "e2e-test-001"
     }'
 
-# 2. 查看是否返回候选疾病
-$response.candidate_diseases
+# 2. 查看加权评分结果
+$response.candidate_diseases | ForEach-Object {
+    Write-Host "$($_.disease): weighted_score=$($_.weighted_score)"
+    $_.match_details | ForEach-Object {
+        Write-Host "  $($_.symptom): w=$($_.weight) × idf=$($_.idf) = $($_.contribution)"
+    }
+}
 
 # 3. 确认诊断
 $confirm = Invoke-RestMethod -Uri "http://localhost:8001/api/v1/clinical/confirm_diagnosis" `
@@ -896,20 +809,41 @@ $confirm.treatment_plan
 
 ---
 
-## 📊 症状-疾病映射表（部分）
+## 📊 知识图谱映射
 
-| 症状 | 可能关联的精神疾病 |
-|:---|:---|
-| 情绪低落 | MDD、双相II型障碍、恶劣心境、适应障碍 |
-| 快感缺失 | MDD、双相抑郁、精神分裂症阴性症状 |
-| 焦虑 | GAD、惊恐障碍、社交焦虑障碍、PTSD |
-| 幻听 | 精神分裂症、分裂情感性障碍、短暂精神病性障碍 |
-| 躁狂 | 双相I型障碍、双相型分裂情感性障碍 |
-| 强迫思维/行为 | OCD、躯体变形障碍、囤积障碍 |
-| 闪回 | PTSD、急性应激障碍、分离性身份障碍 |
-| 自杀意念 | MDD、双相障碍、边缘型人格障碍 |
-| 注意力不集中 | ADHD、双相抑郁、GAD |
-| 失眠 | MDD、GAD、双相障碍、PTSD |
+### 症状-疾病加权映射（部分）
+
+| 症状 | 加权关联疾病 | 权重 | 检索IDF |
+|:---|:---|:---:|:---:|
+| 情绪低落 | **重性抑郁障碍** | **0.95** | 2.64 |
+| | 双相II型障碍 | 0.60 | 2.64 |
+| | 持续性抑郁障碍（恶劣心境） | 0.80 | 2.64 |
+| | 适应障碍 | 0.40 | 2.64 |
+| | 物质所致心境障碍 | 0.25 | 2.64 |
+| 幻听 | **精神分裂症** | **0.90** | 2.64 |
+| | 分裂情感性障碍 | 0.75 | 2.64 |
+| | 伴精神病性特征的重性抑郁障碍 | 0.60 | 2.64 |
+| | 短暂精神病性障碍 | 0.50 | 2.64 |
+| | 物质所致精神病性障碍 | 0.40 | 2.64 |
+| 躁狂 | **双相I型障碍** | **0.95** | 3.15 |
+| | 双相型分裂情感性障碍 | 0.70 | 3.15 |
+| | 物质所致心境障碍 | 0.25 | 3.15 |
+| 强迫思维 | **强迫障碍** | **0.95** | 3.56 |
+| | 躯体变形障碍 | 0.45 | 3.56 |
+| | 囤积障碍 | 0.40 | 3.56 |
+| 闪回 | **创伤后应激障碍** | **0.95** | 2.86 |
+| | 急性应激障碍 | 0.70 | 2.86 |
+| | 分离性身份障碍 | 0.50 | 2.86 |
+
+### 症状同义词扩展表（部分）
+
+| 标准化键 | 中文别名 | 扩展同义词 |
+|:---|:---|:---|
+| `depressed_mood` | 情绪低落, 抑郁情绪, 心情不好, 不开心 | 沮丧, 悲伤, 消沉, 哀伤, 忧郁 |
+| `anxiety` | 焦虑, 紧张, 担心, 不安 | 担忧, 惶恐, 心神不宁 |
+| `insomnia` | 失眠, 入睡困难 | 难以入睡, 睡眠障碍, 睡眠差 |
+| `suicidal_ideation` | 自杀意念, 想死, 不想活 | 自杀念头, 死亡念头, 结束生命 |
+| `auditory_hallucination` | 幻听, 听到声音 | 评论性幻听, 命令性幻听 |
 
 <br>
 
@@ -917,34 +851,35 @@ $confirm.treatment_plan
 
 ## 🔮 路线图
 
+### ✅ 已完成
+
 - [x] 结构化表单输入（替代 LLM 自由文本提取）
 - [x] GraphRAG 知识图谱 top3 候选检索
+- [x] **加权评分检索**（SYMPTOM_WEIGHTS + IDF 逆文档频率）
+- [x] **四层归一化匹配**（别名→同义词→格式化→精确键）
+- [x] **症状同义词扩展**（SYMPTOM_ALIASES，200+ 扩展词）
+- [x] **全链路审计日志**（输入→归一化→IDF→结果）
 - [x] LLM 逐个候选 DSM-5 分析
 - [x] 人机协同 HITL（诊断后中断，医生选择）
 - [x] 动态治疗方案（基于 selected_disease）
 - [x] ICD-10 编码 + DRG 分组
 - [x] HIPAA 合规审计
+- [x] 前端加权评分可视化（评分条 + 匹配贡献明细）
+
+### 🚧 进行中
+
 - [ ] 复诊场景（用药变化追踪 + 调药建议）
 - [ ] 电子病历系统对接（HL7 FHIR）
-- [ ] 向量语义检索替代别名映射（方案C）
-- [ ] 概率打分模型替代简单投票（方案D）
+
+### 🔮 计划中
+
+- [ ] 向量语义检索补充（embedding + 语义相似度）
+- [ ] 概率打分模型替代加权求和
+- [ ] 知识图谱管理后台（可视化编辑症状-疾病映射）
 - [ ] 多语言支持（英文、日文）
-
-<br>
-
----
-
-## 🤝 贡献指南
-
-欢迎提交 Issue 和 PR！
-
-1. Fork 本仓库
-2. 创建特性分支：`git checkout -b feature/amazing-feature`
-3. 提交改动：`git commit -m 'feat: add amazing feature'`
-4. 推送分支：`git push origin feature/amazing-feature`
-5. 创建 Pull Request
-
-请确保代码通过所有诊断检查（0 errors、0 warnings）。
+- [ ] Prometheus metrics 集成
+- [ ] OpenTelemetry 链路追踪
+- [ ] API 鉴权 + 速率限制
 
 <br>
 
@@ -954,9 +889,11 @@ $confirm.treatment_plan
 
 | 限制 | 说明 | 缓解措施 |
 |:---|:---|:---|
-| **SYMPTOM_DISEASE_MAP 覆盖有限** | 约 57 个标准化症状键，罕见症状无法匹配 | LLM 提取失败时降级到 60+ 中文别名映射 |
-| **Neo4j 空库不降级** | 配置了密码但数据库无数据时 Cypher 返回空 | `find_diseases_with_paths` 已绕过 Neo4j，直接走离线字典 |
-| **单 LLM 故障点** | 症状提取和诊断分析共用 API Key | 前端仍可显示 GraphRAG 候选（不含 LLM 推理） |
+| **知识图谱数据在代码中** | 疾病映射和权重存储在 Python 字典中，修改需改代码 + 重新部署 | 计划中：管理后台 + 数据库存储 |
+| **单 LLM 故障点** | 症状提取和诊断分析共用同一个 API Key | 自动降级到规则方法（别名+同义词） |
+| **权重为静态配置** | SYMPTOM_WEIGHTS 需手动维护，无法自动学习 | 计划中：引入数据驱动的概率模型 |
+| **Neo4j 仅做精确匹配** | 未使用模糊查询、路径分析等图数据库高级能力 | 当前设计有意为之——确保诊断安全性 |
+| **无鉴权机制** | API 端点公开可访问 | 内部工具阶段可接受，上线前需添加 |
 
 <br>
 
@@ -984,3 +921,4 @@ of this software and associated documentation files...
 <p align="center">
   <a href="#-项目定位">⬆ 回到顶部</a>
 </p>
+

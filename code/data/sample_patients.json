@@ -1,32 +1,32 @@
 [
   {
     "id": "case_001",
-    "description": "45-year-old male presenting with fever (39.2°C) for 3 days, productive cough with yellow sputum, and right-sided chest pain that worsens with deep breathing. History of type 2 diabetes (diagnosed 5 years ago) and hypertension. Current medications: metformin 500mg twice daily, lisinopril 10mg daily. Allergies: penicillin (causes rash). Vital signs: BP 130/85, HR 102, RR 22, SpO2 94% on room air. Labs: WBC 15,000/μL (elevated), CRP 85 mg/L (elevated), procalcitonin 2.1 ng/mL (elevated). Chest X-ray shows right lower lobe consolidation.",
-    "expected_diagnosis": "Community-Acquired Pneumonia",
-    "expected_icd10": "J18.1"
+    "description": "28岁女性，因持续6周进行性加重的情绪低落、快感缺失、疲乏及睡眠障碍（早醒，凌晨4点醒后无法再入睡）就诊。自述显著非刻意性体重下降5公斤，食欲减退，无价值感和过度内疚，工作中注意力难以集中，存在被动自杀意念（无具体计划）。PHQ-9评分：22分（重度）。否认躁狂/轻躁狂发作史。既往史：甲状腺功能减退（服用左甲状腺素75mcg治疗）。否认物质使用。家族史：母亲有复发性重性抑郁障碍。当前用药：左甲状腺素75mcg每日一次。否认药物过敏史。精神状况检查：抑郁情绪，情感受限，流泪，精神运动性迟滞，语声低微。TSH：2.1 mIU/L（当前左甲状腺素剂量下正常）。",
+    "expected_diagnosis": "重性抑郁障碍，单次发作，中至重度，不伴精神病性特征",
+    "expected_icd10": "F32.1"
   },
   {
     "id": "case_002",
-    "description": "62-year-old female with sudden onset of crushing chest pain radiating to the left arm for 2 hours, associated with diaphoresis, nausea, and shortness of breath. History of hyperlipidemia, smoking (30 pack-years, quit 2 years ago), and family history of MI (father at age 55). Current medications: atorvastatin 40mg daily, aspirin 81mg daily. No known allergies. Vital signs: BP 160/95, HR 110, RR 24, SpO2 96%. ECG shows ST elevation in leads V1-V4. Troponin I: 4.5 ng/mL (markedly elevated).",
-    "expected_diagnosis": "ST-Elevation Myocardial Infarction (STEMI)",
-    "expected_icd10": "I21.0"
+    "description": "22岁男性，由家属送至精神科急诊，因2周以来行为日益怪异。患者坚信被政府机构通过手机监视，认为自己的思想被播散出去，他人能够听到。自述听到有声音评论其行为并告诉他有危险。言语散漫，思维离题和联想松弛。近3个月社交退缩，停止大学课程，整日待在房间内。否认物质使用。无显著既往躯体疾病史。家族史：舅舅有精神分裂症。精神状况检查：偏执被害观念，幻听（第三人称评论性幻听），情感受限，回避目光接触，思维过程散漫无组织。CGI-S评分：5分（显著异常）。尿毒物筛查：阴性。",
+    "expected_diagnosis": "精神分裂症，首次发作",
+    "expected_icd10": "F20.9"
   },
   {
     "id": "case_003",
-    "description": "28-year-old female presenting with progressive fatigue, weight gain of 8kg over 6 months, cold intolerance, constipation, and dry skin. She also reports hair thinning and difficulty concentrating. No significant past medical history. Family history: mother has Hashimoto's thyroiditis. No current medications. No allergies. Vital signs: BP 105/70, HR 58, Temp 36.2°C. Labs: TSH 15.2 mIU/L (elevated), Free T4 0.4 ng/dL (low), Anti-TPO antibodies positive.",
-    "expected_diagnosis": "Hypothyroidism (Hashimoto's Thyroiditis)",
-    "expected_icd10": "E03.9"
+    "description": "35岁女性，已知双相I型障碍病史，因10天来情绪显著高涨、睡眠需要减少（每夜仅睡2-3小时仍精力充沛）、夸大观念（坚信自己将成为著名CEO，已花费1.5万元用于商业采购）、言语急促、思维奔逸、注意力易转移及目标导向活动增多（连夜同时制定多个商业计划）就诊。家人劝阻时易激惹。无精神病性特征。杨氏躁狂量表YMRS：28分（中重度躁狂）。当前用药：碳酸锂600mg每日两次（4周前因药物副作用停药）。3月前最近一次血锂浓度：0.7 mEq/L。无躯体合并症。精神状况检查：高涨/欣快情绪，言语急促，夸大，自知力差。实验室：血锂浓度<0.1 mEq/L（确认未依从）。甲功正常。",
+    "expected_diagnosis": "双相I型障碍，当前躁狂发作，重度，不伴精神病性特征",
+    "expected_icd10": "F31.10"
   },
   {
     "id": "case_004",
-    "description": "55-year-old male with worsening shortness of breath on exertion over the past month, now occurring with minimal activity. Bilateral lower extremity edema, orthopnea requiring 3 pillows, and paroxysmal nocturnal dyspnea. History of coronary artery disease (CABG 3 years ago), type 2 diabetes, and hypertension. Current medications: carvedilol 25mg BID, furosemide 40mg daily, lisinopril 20mg daily, metformin 1000mg BID, aspirin 81mg daily. No allergies. Vital signs: BP 100/65, HR 95, RR 26, SpO2 91% on room air. Physical exam: JVD, bilateral crackles on lung auscultation, 3+ pitting edema bilaterally. BNP: 1250 pg/mL (elevated). Chest X-ray: cardiomegaly with bilateral pleural effusions.",
-    "expected_diagnosis": "Acute Decompensated Heart Failure",
-    "expected_icd10": "I50.9"
+    "description": "42岁男性退伍军人，因2年来反复出现战争经历相关噩梦、警觉性增高（持续扫视环境、背对门坐难以忍受）、惊跳反应过度、回避人群、噪音和烟花就诊。自述频繁闯入性创伤记忆（闪回）、情感麻木（感觉与配偶及子女疏离）及持续性消极心境。近18月以酒精自我麻醉（每日6-8瓶啤酒）。因易激惹和暴怒发作难以维持工作。睡眠严重紊乱。PCL-5评分：62分（重度PTSD）。AUDIT评分：22分（可能酒精依赖）。既往史：慢性腰痛、耳鸣。当前无用药。无已知药物过敏史。精神状况检查：警觉增高姿态，情感受限，焦虑情绪，认知完好。GGT：85 U/L（升高），MCV：101 fL（升高）。",
+    "expected_diagnosis": "创伤后应激障碍（PTSD）合并酒精使用障碍",
+    "expected_icd10": "F43.10"
   },
   {
     "id": "case_005",
-    "description": "35-year-old male presenting to the ER with severe right lower quadrant abdominal pain for 12 hours, initially periumbilical then migrating to RLQ. Associated nausea, one episode of vomiting, anorexia, and low-grade fever (37.8°C). No significant medical history. No current medications. No allergies. Vital signs: BP 125/80, HR 92, Temp 37.8°C. Physical exam: McBurney's point tenderness, positive Rovsing's sign, rebound tenderness. Labs: WBC 14,200/μL with left shift, CRP 45 mg/L. CT abdomen: inflamed appendix with periappendiceal fat stranding, no perforation.",
-    "expected_diagnosis": "Acute Appendicitis",
-    "expected_icd10": "K35.80"
+    "description": "19岁大学女生，4月来进行性体重下降（BMI从21降至15.8），极度恐惧体重增加，体象歪曲（尽管体重明显偏低仍坚信自己过重），严格限制进食（每日摄入不足500千卡，避免所有脂肪和碳水化合物）。近3月闭经。强迫性运动（每日跑步2小时，尽管疲乏）。否认暴食或清除行为。家长诉患者社交孤立，被劝食时易激惹，穿宽松衣物掩盖体形。心率48次/分（窦性心动过缓），血压90/55mmHg，体位性低血压（立位时心率增加20次/分）。手臂和面部可见毳毛。畏寒。既往史：焦虑。当前用药：无。无药物过敏史。实验室：低钾血症（K+ 3.1 mmol/L），转氨酶升高（ALT 85 U/L），白细胞偏低 3.2×10^9/L。心电图：窦性心动过缓，QTc 460ms。",
+    "expected_diagnosis": "神经性厌食症，限制型，重度",
+    "expected_icd10": "F50.01"
   }
 ]

@@ -1,0 +1,1 @@
+export { floatButtonProps, default as NFloatButton } from "./src/FloatButton.mjs";

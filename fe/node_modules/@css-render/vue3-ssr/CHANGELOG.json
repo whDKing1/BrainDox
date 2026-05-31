@@ -1,0 +1,226 @@
+{
+  "name": "@css-render/vue3-ssr",
+  "entries": [
+    {
+      "version": "0.15.14",
+      "tag": "@css-render/vue3-ssr_v0.15.14",
+      "date": "Sun, 05 May 2024 06:34:46 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.13",
+      "tag": "@css-render/vue3-ssr_v0.15.13",
+      "date": "Sun, 05 May 2024 05:43:33 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.12",
+      "tag": "@css-render/vue3-ssr_v0.15.12",
+      "date": "Sat, 24 Dec 2022 17:17:08 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.11",
+      "tag": "@css-render/vue3-ssr_v0.15.11",
+      "date": "Sun, 21 Aug 2022 07:56:48 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.10",
+      "tag": "@css-render/vue3-ssr_v0.15.10",
+      "date": "Wed, 23 Mar 2022 12:33:17 GMT",
+      "comments": {
+        "none": [
+          {
+            "comment": "Fix useSsrAdapter may return non-undefined value in browser."
+          }
+        ]
+      }
+    },
+    {
+      "version": "0.15.9",
+      "tag": "@css-render/vue3-ssr_v0.15.9",
+      "date": "Sat, 05 Mar 2022 14:58:36 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.8",
+      "tag": "@css-render/vue3-ssr_v0.15.8",
+      "date": "Tue, 28 Dec 2021 18:59:30 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.7",
+      "tag": "@css-render/vue3-ssr_v0.15.7",
+      "date": "Tue, 28 Dec 2021 17:54:23 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.6",
+      "tag": "@css-render/vue3-ssr_v0.15.6",
+      "date": "Thu, 02 Sep 2021 15:52:34 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.5",
+      "tag": "@css-render/vue3-ssr_v0.15.5",
+      "date": "Sat, 24 Jul 2021 17:34:06 GMT",
+      "comments": {
+        "none": [
+          {
+            "comment": "Update readme"
+          }
+        ]
+      }
+    },
+    {
+      "version": "0.15.4",
+      "tag": "@css-render/vue3-ssr_v0.15.4",
+      "date": "Sun, 13 Jun 2021 04:56:14 GMT",
+      "comments": {
+        "none": [
+          {
+            "comment": "(breaking) Remove `ssrAdapter` exports"
+          }
+        ]
+      }
+    },
+    {
+      "version": "0.15.3",
+      "tag": "@css-render/vue3-ssr_v0.15.3",
+      "date": "Sat, 12 Jun 2021 09:50:10 GMT",
+      "comments": {
+        "none": [
+          {
+            "comment": "Add useSsrAdapter hook"
+          }
+        ]
+      }
+    },
+    {
+      "version": "0.15.2",
+      "tag": "@css-render/vue3-ssr_v0.15.2",
+      "date": "Wed, 02 Jun 2021 04:15:14 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.15.1",
+      "tag": "@css-render/vue3-ssr_v0.15.1",
+      "date": "Tue, 01 Jun 2021 13:35:47 GMT",
+      "comments": {
+        "none": [
+          {
+            "comment": "no main & module in pkg.json"
+          }
+        ]
+      }
+    },
+    {
+      "version": "0.15.0",
+      "tag": "@css-render/vue3-ssr_v0.15.0",
+      "date": "Tue, 01 Jun 2021 13:10:25 GMT",
+      "comments": {
+        "none": [
+          {
+            "comment": "support stream ssr"
+          }
+        ]
+      }
+    },
+    {
+      "version": "0.14.1",
+      "tag": "@css-render/vue3-ssr_v0.14.1",
+      "date": "Wed, 19 May 2021 05:06:20 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.14.0",
+      "tag": "@css-render/vue3-ssr_v0.14.0",
+      "date": "Wed, 19 May 2021 05:03:05 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.13.9",
+      "tag": "@css-render/vue3-ssr_v0.13.9",
+      "date": "Sun, 16 May 2021 19:46:15 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.13.8",
+      "tag": "@css-render/vue3-ssr_v0.13.8",
+      "date": "Wed, 12 May 2021 11:45:08 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.13.7",
+      "tag": "@css-render/vue3-ssr_v0.13.7",
+      "date": "Wed, 12 May 2021 11:35:11 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.13.6",
+      "tag": "@css-render/vue3-ssr_v0.13.6",
+      "date": "Wed, 14 Apr 2021 17:53:56 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.13.5",
+      "tag": "@css-render/vue3-ssr_v0.13.5",
+      "date": "Wed, 14 Apr 2021 17:06:44 GMT",
+      "comments": {
+        "none": [
+          {
+            "comment": "feat(plugin-bem): add bPrefix prop"
+          }
+        ]
+      }
+    },
+    {
+      "version": "0.13.4",
+      "tag": "@css-render/vue3-ssr_v0.13.4",
+      "date": "Wed, 14 Apr 2021 16:25:11 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.13.3",
+      "tag": "@css-render/vue3-ssr_v0.13.3",
+      "date": "Wed, 14 Apr 2021 16:24:04 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.13.2",
+      "tag": "@css-render/vue3-ssr_v0.13.2",
+      "date": "Fri, 26 Feb 2021 08:24:05 GMT",
+      "comments": {}
+    },
+    {
+      "version": "0.13.1",
+      "tag": "@css-render/vue3-ssr_v0.13.1",
+      "date": "Fri, 26 Feb 2021 08:18:28 GMT",
+      "comments": {
+        "none": [
+          {
+            "comment": "No changes"
+          }
+        ]
+      }
+    },
+    {
+      "version": "0.13.0",
+      "tag": "@css-render/vue3-ssr_v0.13.0",
+      "date": "Wed, 24 Feb 2021 09:35:28 GMT",
+      "comments": {
+        "minor": [
+          {
+            "comment": "Add SsrContext component & ssrAdapter"
+          }
+        ],
+        "dependency": [
+          {
+            "comment": "Updating dependency \"css-render\" from `~0.12.0` to `~0.13.0`"
+          }
+        ]
+      }
+    }
+  ]
+}

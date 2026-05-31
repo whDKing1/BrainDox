@@ -1,0 +1,21 @@
+import type { Theme } from '../../_mixins';
+import type { ThemeCommonVars } from '../../_styles/common';
+export declare function self(vars: ThemeCommonVars): {
+    fontSizeTiny: string;
+    fontSizeSmall: string;
+    fontSizeMedium: string;
+    fontSizeLarge: string;
+    fontSizeHuge: string;
+    textColor: string;
+    iconColor: string;
+    extraTextColor: string;
+    iconSizeTiny: string;
+    iconSizeSmall: string;
+    iconSizeMedium: string;
+    iconSizeLarge: string;
+    iconSizeHuge: string;
+};
+export type EmptyThemeVars = ReturnType<typeof self>;
+declare const emptyLight: Theme<'Empty', EmptyThemeVars>;
+export default emptyLight;
+export type EmptyTheme = typeof emptyLight;

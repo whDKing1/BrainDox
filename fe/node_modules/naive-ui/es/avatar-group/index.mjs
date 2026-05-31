@@ -1,0 +1,1 @@
+export { avatarGroupProps, default as NAvatarGroup } from "./src/AvatarGroup.mjs";

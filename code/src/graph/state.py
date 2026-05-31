@@ -76,7 +76,9 @@ class ClinicalState(BaseModel):
         raw_input (用户输入)
             -> IntakeAgent -> patient_info (结构化患者信息)
         patient_info
-            -> DiagnosisAgent -> diagnosis (诊断结果), needs_more_info (是否需要更多信息)
+            -> SufficiencyCheck -> needs_more_info (规则引擎检查关键字段)
+                充足 -> DiagnosisAgent -> diagnosis (鉴别诊断结果)
+                不足 -> END (暂停，返回给医生补充)
         diagnosis + patient_info
             -> TreatmentAgent -> treatment_plan (治疗方案)
         treatment_plan + diagnosis
@@ -109,16 +111,28 @@ class ClinicalState(BaseModel):
     diagnosis: Optional[dict] = Field(
         default=None, description="Differential diagnosis from DiagnosisAgent"
     )
-    # 存储鉴别诊断结果，同样以字典形式保存。
+    # candidate_diseases: GraphRAG 检索到的 top3 候选疾病（含图检索路径），
+    # 由 Diagnosis Agent 注入，前端展示给医生选择。
+    candidate_diseases: list[dict] = Field(
+        default_factory=list,
+        description="Top 3 candidate diseases from GraphRAG with graph paths",
+    )
+    # selected_disease: 医生 HITL 选择的诊断疾病名称。
+    # 初始为空字符串（未选择），医生确认后设为疾病名称。
+    # Treatment Agent 根据此字段调整治疗方案。
+    selected_disease: str = Field(
+        default="",
+        description="Doctor-selected disease after HITL review",
+    )
     needs_more_info: bool = Field(
         default=False,
-        description="Flag set by DiagnosisAgent when more info is needed",
+        description="SufficiencyCheck规则引擎判定信息不足时设为true",
     )
-    # diagnosis_retry_count：诊断回环计数器。
-    # 每次 Diagnosis Agent 返回 needs_more_info=true 时，该计数 +1。
+    # diagnosis_retry_count：信息不足重试计数器。
+    # 每次 SufficiencyCheck 发现信息不足时，该计数 +1。
     # 编排层的路由函数会检查此值：当 >= MAX_DIAGNOSIS_RETRIES 时，
-    # 即使 needs_more_info 仍为 true，也强制路由到 treatment，
-    # 从而防止 LLM 幻觉导致的无限回退死循环。
+    # 即使 needs_more_info 仍为 true，也强制路由到 diagnosis，
+    # 从而防止因 Intake Agent 持续失败导致的永远无法推进。
     # 初始值为 0，每次 Pipeline 调用从零开始计数。
     diagnosis_retry_count: int = Field(
         default=0,
@@ -128,22 +142,23 @@ class ClinicalState(BaseModel):
     # =========================================================================
     # Human-in-the-loop 人工审核状态
     # =========================================================================
-    # human_review_status 追踪诊断结果的人工审核生命周期：
+    # human_review_status 追踪 HITL 生命周期：
     #
-    #   "none"      — 初始状态，Pipeline 尚未到达审核点，或未启用 Human-in-the-loop。
-    #   "pending"   — Pipeline 已在 Diagnosis 之后暂停，等待医生审核诊断结果。
-    #                  此时 treatment_plan / coding_result / audit_result 均为 None。
-    #   "approved"  — 医生已确认诊断结果，Pipeline 从 Treatment 继续执行。
-    #   "rejected"  — 医生修改了诊断结果，Pipeline 基于修正后的 diagnosis 重新执行
-    #                  Treatment → Coding → Audit。
+    #   "none"               — 初始状态
+    #   "awaiting_diagnosis" — 诊断完成，等待医生从3个候选中选择诊断
+    #   "diagnosis_selected" — 医生已选择诊断，Pipeline 继续执行 Treatment
+    #   "pending"            — 等待医生审核治疗方案
+    #   "approved"           — 医生批准
+    #   "rejected"           — 医生修改后重新执行
     #
     # 这个字段是 Human-in-the-loop 流程的核心状态机。API 层根据此字段判断：
-    #   - 是否可以向医生展示待审核的诊断结果（pending 时展示）。
-    #   - 是否可以接受医生的批准/拒绝操作（只有 pending 状态才能操作）。
-    #   - Pipeline 是否已完成全部流程（approved/rejected 且 audit_result 非空）。
-    human_review_status: Literal["none", "pending", "approved", "rejected"] = Field(
+    #   - human_review_status == "awaiting_diagnosis"：返回 candidate_diseases 给前端展示
+    #   - human_review_status == "diagnosis_selected"：Pipeline 继续，诊断已确认
+    human_review_status: Literal[
+        "none", "awaiting_diagnosis", "diagnosis_selected", "pending", "approved", "rejected"
+    ] = Field(
         default="none",
-        description="Human review lifecycle: none → pending → approved|rejected",
+        description="HITL lifecycle: none → awaiting_diagnosis → diagnosis_selected → pending → approved|rejected",
     )
     # human_review_comment：医生在审核时留下的备注。
     # 例如："诊断基本正确，但建议加做D-二聚体排除肺栓塞"。
@@ -194,4 +209,16 @@ class ClinicalState(BaseModel):
     )
     current_agent: str = Field(
         default="", description="Name of the currently executing agent"
+    )
+
+    # =========================================================================
+    # 意图识别字段（IntentRouter 写入）
+    # =========================================================================
+    # scenario：IntentRouter 识别结果。
+    #   "new_visit" — 初诊，走完整 5-Agent 全链路。
+    #   "followup"  — 复诊，走 FollowupIntake → Treatment → Coding → Audit。
+    # 初始值为 new_visit（兜底策略：不确定时按初诊处理）。
+    scenario: Literal["new_visit", "followup"] = Field(
+        default="new_visit",
+        description="医生选择的就诊场景：new_visit=初诊全链路，followup=复诊精简链路",
     )

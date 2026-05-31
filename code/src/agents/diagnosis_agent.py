@@ -1,12 +1,12 @@
 """
-Diagnosis Agent — Differential diagnosis based on structured patient data.
+Diagnosis Agent — 精神科鉴别诊断，基于结构化患者数据 + GraphRAG 候选。
 
-Responsibilities:
-  - Analyze symptoms + lab results against medical knowledge
-  - Generate ranked differential diagnosis list with confidence scores
-  - Provide evidence chains for each candidate diagnosis
-  - Recommend additional tests if information is insufficient
-  - Integrates with GraphRAG knowledge graph when available
+职责：
+  - LLM 从患者信息（含主诉长文本）中提取标准化症状键 → GraphRAG 检索
+  - GraphRAG 检索 top3 候选疾病（含图检索路径）
+  - LLM 分析每个候选的 DSM-5 证据链
+  - 输出结构化分析供前端展示给医生选择
+  - 医生选择后路由到对应治疗方案
 """
 
 from __future__ import annotations
@@ -16,108 +16,186 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from ..config.settings import get_settings
-from ..graph.state import MAX_DIAGNOSIS_RETRIES
 from ..services.graphrag_service import get_graphrag_service
 
 logger = structlog.get_logger(__name__)
 
-DIAGNOSIS_SYSTEM_PROMPT = """You are an expert neurologist performing differential diagnosis for neurological and brain diseases. Given structured patient information (including neurological exam and neuroimaging), provide a comprehensive neurological differential diagnosis.
+# 构建供 LLM 参考的所有标准化症状键列表（来自 SYMPTOM_DISEASE_MAP）
+# 这些是 LLM 提取症状时的标准化输出选项
+_STANDARD_SYMPTOM_KEYS = [
+    "depressed_mood", "anhedonia", "anxiety", "panic_attack",
+    "auditory_hallucination", "visual_hallucination", "delusion", "paranoia",
+    "mania", "elevated_mood", "hypomania",
+    "obsession", "compulsion",
+    "trauma_flashback", "hypervigilance", "nightmares",
+    "suicidal_ideation", "self_harm",
+    "inattention", "hyperactivity", "impulsivity",
+    "social_withdrawal", "negative_symptoms",
+    "cognitive_decline", "memory_loss",
+    "insomnia", "difficulty_falling_asleep", "middle_insomnia", "early_morning_awakening", "hypersomnia",
+    "appetite_loss", "appetite_increase", "weight_loss", "weight_gain",
+    "fatigue", "guilt", "irritability", "emotional_lability",
+    "psychomotor_retardation", "psychomotor_agitation",
+    "somatic_complaints", "dissociation",
+    "disorganized_speech", "catatonia", "confusion",
+    "substance_craving", "apathy",
+    "repetitive_behavior", "tics",
+]
 
-You specialize in: cerebrovascular diseases (stroke, TIA, SAH, ICH), epilepsy and seizure disorders, neurodegenerative diseases (Parkinson's, Alzheimer's, ALS), demyelinating diseases (MS, ADEM), neuroinflammatory diseases (meningitis, encephalitis, GBS), brain tumors, headache disorders (migraine, cluster, tension-type), peripheral neuropathies, movement disorders, neuromuscular junction disorders (myasthenia gravis), and spinal cord diseases.
+SYMPTOM_EXTRACTION_PROMPT = f"""你是一名精神科症状标准化提取助手。
+请从以下患者信息中提取所有精神科症状，输出为标准化症状键列表。
 
-Return a JSON object with this structure:
-{
-  "primary_diagnosis": {
-    "disease_name": "most likely neurological diagnosis",
-    "icd10_hint": "approximate ICD-10 code (e.g., I63.9, G40.9, G20, G35)",
-    "confidence": 0.85,
-    "evidence": ["supporting finding 1", "supporting finding 2"],
-    "reasoning": "clinical reasoning with neuroanatomical localization"
-  },
-  "differential_list": [
-    {
-      "disease_name": "alternative neurological diagnosis",
-      "icd10_hint": "ICD-10 code",
-      "confidence": 0.6,
-      "evidence": ["evidence 1"],
-      "reasoning": "why this is considered"
-    }
-  ],
-  "neuroanatomical_localization": {
-    "location": "e.g., left MCA territory, brainstem, spinal cord T8, peripheral nerve",
-    "reasoning": "evidence supporting this localization"
-  },
-  "recommended_tests": ["test 1 to confirm/rule out", "test 2"],
-  "clinical_notes": "overall neurological impression",
-  "knowledge_sources": ["guideline or reference, e.g., AHA/ASA Guidelines, ILAE classification"],
-  "needs_more_info": false
-}
+可用的标准化症状键（必须从中选择，不要自创）：
+{chr(10).join(f'  - {k}' for k in _STANDARD_SYMPTOM_KEYS)}
 
-Rules:
-- Confidence scores must be between 0 and 1.
-- Provide at least 2-3 differential diagnoses specific to neurology.
-- List evidence from the patient data that supports each diagnosis.
-- Always provide neuroanatomical localization when possible (where in the nervous system is the lesion?).
-- For stroke: specify ischemic vs hemorrhagic, vascular territory, and note time since onset (critical for thrombolysis decisions).
-- For seizures: classify by type (focal vs generalized) and etiology when possible.
-- If critical information is missing (e.g., no imaging for stroke, no EEG for seizures), set needs_more_info to true.
-- Use standard neurological terminology and ICD-10 code hints (G00-G99 for nervous system, I60-I69 for cerebrovascular).
-- Return ONLY valid JSON, no markdown fences."""
+要求：
+- 仔细阅读主诉（chief_complaint）和症状列表（symptoms.name），从中提取所有症状
+- 主诉通常是长文本，包含丰富的临床描述，必须解析
+- 如果患者描述的症状接近但并非完全匹配某个标准化键，选择最接近的键（例如"睡不着"→"difficulty_falling_asleep"）
+- 只提取明确存在的症状，不要推断没有的症状
+- 只返回 JSON 数组：["key1", "key2", ...]
+- 不要用 markdown 代码块包裹
+- 如果没有匹配任何症状，返回 []
+"""
 
 
 def _extract_symptom_names(patient_info: dict) -> list[str]:
     """从 patient_info 字典中提取症状名称列表，供 GraphRAG 检索使用。"""
     names = []
-    # 从 symptoms 列表中提取每个症状的 name 字段
     for symptom in patient_info.get("symptoms", []):
         if isinstance(symptom, dict) and symptom.get("name"):
             names.append(symptom["name"])
-    # 如果有 chief_complaint，也作为症状线索加入
     chief = patient_info.get("chief_complaint", "")
     if chief and chief not in names:
         names.append(chief)
     return names
 
 
-def _format_graphrag_context(candidate_diseases: list[dict]) -> str:
-    """将 GraphRAG 检索到的候选疾病格式化为 LLM 可读的参考上下文。"""
+def _extract_symptoms_via_llm(patient_info: dict) -> list[str]:
+    """
+    使用 LLM 从患者信息（含主诉长文本）中提取标准化症状键列表。
+
+    相比规则方法 _extract_symptom_names() 的优势：
+      - 能理解主诉中的自然语言描述（"睡不着"→"difficulty_falling_asleep"）
+      - 能从长文本中抽取多个症状，而非把整段文本当做一个症状
+      - 输出直接是 SYMPTOM_DISEASE_MAP 的键，绕过别名映射
+
+    返回：标准化症状键列表（如 ["depressed_mood", "anhedonia", "insomnia"]）
+    """
+    patient_json = json.dumps(patient_info, ensure_ascii=False, indent=2)
+    settings = get_settings()
+    llm = ChatOpenAI(
+        model=settings.openai_model,
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url or None,
+        temperature=0.0,
+    )
+    try:
+        response = llm.invoke([
+            SystemMessage(content=SYMPTOM_EXTRACTION_PROMPT),
+            HumanMessage(content=f"患者信息：\n{patient_json}"),
+        ])
+        content = response.content.strip()
+        if content.startswith("```"):
+            content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        keys = json.loads(content)
+        if isinstance(keys, list):
+            valid = [k for k in keys if k in _STANDARD_SYMPTOM_KEYS]
+            logger.info("diagnosis_agent.symptom_extraction_llm", raw=keys, valid=valid)
+            return valid
+        return []
+    except Exception as e:
+        logger.warning("diagnosis_agent.symptom_extraction_fallback", error=str(e))
+        return []
+
+DIAGNOSIS_SYSTEM_PROMPT = """你是一名资深精神科医师，负责根据结构化患者信息进行鉴别诊断。
+
+你面前有 3 个知识图谱检索到的候选疾病（按症状匹配度排序）。
+对每个候选疾病，你需要进行独立的 DSM-5 标准分析：
+  1. 列出该诊断的支持证据（患者符合的 DSM-5 诊断标准）
+  2. 列出该诊断的不支持证据（患者不符合或缺乏的信息）
+  3. 给出临床推理过程，包括考虑的鉴别诊断要点
+  4. 标注置信度和需要补充的检查
+
+请返回如下 JSON 结构（所有文本使用中文）：
+
+{
+  "candidate_analyses": [
+    {
+      "disease_name": "疾病名称",
+      "icd10_hint": "ICD-10编码",
+      "confidence": 0.0-1.0,
+      "supporting_evidence": ["符合DSM-5标准A的条目1", "条目2"],
+      "opposing_evidence": ["不支持或缺乏的信息"],
+      "reasoning": "完整的临床推理路径",
+      "recommended_tests": ["建议补充检查"]
+    }
+  ],
+  "primary_recommendation": {
+    "disease_name": "最可能诊断",
+    "reasoning": "为何这是最可能的诊断",
+    "clinical_notes": "整体临床印象，含DSM-5标注词"
+  },
+  "suicide_risk_assessment": "自杀风险评估",
+  "medical_mimics_ruled_out": ["已排除的医学模拟因素"]
+}
+
+规则：
+- 置信度必须在 0 到 1 之间
+- 严格基于患者数据，不编造
+- 对每个候选疾病单独分析
+- primary_recommendation 从 3 个候选中选择最可能的一个
+- 只返回合法 JSON，不要用 markdown 代码块包裹
+"""
+
+
+def _extract_symptom_names(patient_info: dict) -> list[str]:
+    """从 patient_info 字典中提取症状名称列表，供 GraphRAG 检索使用。"""
+    names = []
+    for symptom in patient_info.get("symptoms", []):
+        if isinstance(symptom, dict) and symptom.get("name"):
+            names.append(symptom["name"])
+    chief = patient_info.get("chief_complaint", "")
+    if chief and chief not in names:
+        names.append(chief)
+    return names
+
+
+def _format_graphrag_context(candidates_with_paths: list[dict]) -> str:
+    """将 GraphRAG 检索到的候选疾病格式化为 LLM 可读的参考上下文（含图路径）。"""
     lines = [
-        "=== Knowledge Graph Reference (GraphRAG) ===",
-        "The following diseases are highly associated with the patient's symptoms, ranked by symptom match count. Please prioritize these in your differential diagnosis:\n",
+        "=== 知识图谱参考（GraphRAG）===",
+        "以下疾病由症状→疾病图检索匹配，按匹配数排序。",
+        "请对每个候选疾病独立分析其 DSM-5 证据。\n",
     ]
-    for i, cd in enumerate(candidate_diseases, 1):
-        line = f"{i}. {cd['disease']} (matched {cd['symptom_match_count']} symptom(s))"
-        if cd.get("icd10_code"):
-            line += f" — ICD-10: {cd['icd10_code']}"
-        if cd.get("icd10_description"):
-            line += f", {cd['icd10_description']}"
-        lines.append(line)
-    lines.append("\n=== End of Knowledge Graph Reference ===")
+    for i, cd in enumerate(candidates_with_paths, 1):
+        matched = "、".join(cd.get("matched_symptoms", [])) or "无精确匹配"
+        lines.append(
+            f"{i}. {cd['disease']}（ICD-10: {cd.get('icd10_code', '')}）\n"
+            f"   症状匹配路径: {matched}\n"
+            f"   匹配度: {cd['symptom_match_count']}/{cd['total_symptoms']}"
+        )
+    lines.append("\n=== 知识图谱参考结束 ===")
     return "\n".join(lines)
 
 
 def diagnosis_agent(state) -> dict:
     """
-    LangGraph node: Generate differential diagnosis from patient info.
-    Reads: state.patient_info
-    Writes: state.diagnosis, state.needs_more_info, state.current_agent
+    LangGraph节点：从患者信息 + GraphRAG 候选生成鉴别诊断分析。
+
+    读取：state.patient_info
+    写入：state.diagnosis, state.candidate_diseases, state.human_review_status, state.current_agent
+
+    完成后设置 human_review_status="awaiting_diagnosis"，
+    Pipeline 在此中断，等待医生从3个候选中选择。
     """
     logger.info("diagnosis_agent.start")
 
     patient_info = state.patient_info
     if not patient_info:
-        # patient_info 为空时，无法做诊断，必须回退。
-        # 同时递增重试计数，防止因上游持续失败导致的无限回环。
-        new_count = state.diagnosis_retry_count + 1
-        logger.warning(
-            "diagnosis_agent.no_patient_info",
-            retry_count=new_count,
-            max_retries=MAX_DIAGNOSIS_RETRIES,
-        )
+        logger.warning("diagnosis_agent.no_patient_info")
         return {
             "diagnosis": None,
-            "needs_more_info": True,
-            "diagnosis_retry_count": new_count,
             "current_agent": "diagnosis",
             "errors": state.errors + ["No patient info available for diagnosis"],
         }
@@ -130,83 +208,63 @@ def diagnosis_agent(state) -> dict:
         temperature=0.2,
     )
 
-    # -------------------------------------------------------------------------
-    # 3. GraphRAG 知识图谱检索：从症状提取候选疾病
-    # -------------------------------------------------------------------------
-    # 从 patient_info 中提取症状名称列表，调用 GraphRAG 服务的
-    # find_diseases_by_symptoms() 方法，获取按匹配度排序的候选疾病。
-    # 这些候选疾病将作为 LLM 的参考信息注入 Prompt，引导 LLM 重点关注
-    # 知识图谱中与患者症状高度关联的疾病，减少幻觉和遗漏。
-    symptom_names = _extract_symptom_names(patient_info)
-    graphrag_context = ""
-    if symptom_names:
+    # 1. GraphRAG 检索 top3 候选（含图路径）
+    # 优先使用 LLM 从患者信息（含主诉长文本）提取标准化症状键
+    # LLM 能理解自然语言（"睡不着"→"difficulty_falling_asleep"），绕过别名映射
+    symptom_keys = _extract_symptoms_via_llm(patient_info)
+    if not symptom_keys:
+        # LLM 提取失败（API/网络/JSON 解析），降级到规则方法
+        raw_names = _extract_symptom_names(patient_info)
+        if raw_names:
+            graphrag_service = get_graphrag_service()
+            candidates_with_paths = graphrag_service.find_diseases_with_paths(raw_names, top_k=3)
+        else:
+            candidates_with_paths = []
+        logger.info("diagnosis_agent.symptom_extraction_rule", raw=raw_names, count=len(candidates_with_paths))
+    else:
+        # LLM 提取成功，标准化键绕过别名映射直接匹配
         graphrag_service = get_graphrag_service()
-        candidate_diseases = graphrag_service.find_diseases_by_symptoms(symptom_names)
-        if candidate_diseases:
-            graphrag_context = _format_graphrag_context(candidate_diseases)
-            logger.info(
-                "diagnosis_agent.graphrag_hits",
-                symptom_count=len(symptom_names),
-                candidate_count=len(candidate_diseases),
-                top3=[d["disease"] for d in candidate_diseases[:3]],
-            )
+        candidates_with_paths = graphrag_service.find_diseases_with_paths(symptom_keys, top_k=3)
+        logger.info("diagnosis_agent.symptom_extraction_llm_ok", keys=symptom_keys, count=len(candidates_with_paths))
 
-    # -------------------------------------------------------------------------
-    # 4. 准备 LLM 输入
-    # -------------------------------------------------------------------------
-    patient_summary = json.dumps(patient_info, indent=2, ensure_ascii=False)
-    # 构建 HumanMessage：如果有 GraphRAG 候选疾病，在患者信息前插入参考上下文，
-    # 明确告诉 LLM 这些是知识图谱检索出的高关联疾病，请重点考虑。
-    human_content = ""
-    if graphrag_context:
-        human_content += f"{graphrag_context}\n\n"
-    human_content += f"Patient information:\n\n{patient_summary}\n\nProvide your differential diagnosis."
+    # 2. 构建带图路径的 Prompt
+    graphrag_context = ""
+    if candidates_with_paths:
+        graphrag_context = _format_graphrag_context(candidates_with_paths)
+        logger.info("diagnosis_agent.graphrag_hits", count=len(candidates_with_paths))
+
+    patient_json = json.dumps(patient_info, ensure_ascii=False, indent=2)
+    full_prompt = f"{DIAGNOSIS_SYSTEM_PROMPT}\n\n{graphrag_context}\n\n患者结构化数据：\n{patient_json}" if graphrag_context else f"{DIAGNOSIS_SYSTEM_PROMPT}\n\n患者结构化数据：\n{patient_json}"
+
     messages = [
-        SystemMessage(content=DIAGNOSIS_SYSTEM_PROMPT),
-        HumanMessage(content=human_content),
+        SystemMessage(content=full_prompt),
+        HumanMessage(content="请基于上述患者数据和知识图谱候选，进行鉴别诊断分析。"),
     ]
 
+    # 3. LLM 调用
     try:
         response = llm.invoke(messages)
         content = response.content.strip()
         if content.startswith("```"):
             content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
-
         diagnosis_data = json.loads(content)
-        # 从诊断字典中提取并移除 "needs_more_info" 字段，方便单独处理。
-        # pop 的第二个参数 False 是默认值，如果字段不存在则返回 False。
-        needs_more = diagnosis_data.pop("needs_more_info", False)
 
-        # 诊断回环计数器：当 LLM 判定信息不足需要回退时，计数 +1。
-        # 如果 needs_more 为 False，计数器保持不变（不重置，因为同一轮 Pipeline
-        # 中之前的回退记录仍有意义——路由函数需要知道累计回退了几次）。
-        new_count = state.diagnosis_retry_count + 1 if needs_more else state.diagnosis_retry_count
+        logger.info("diagnosis_agent.success", primary=diagnosis_data.get("primary_recommendation", {}).get("disease_name"))
 
-        # 记录诊断成功日志，特别打印出首要诊断的名称，方便追踪。
-        logger.info(
-            "diagnosis_agent.success",
-            primary=diagnosis_data.get("primary_diagnosis", {}).get("disease_name"),# 先安全地获取 primary_diagnosis 内部的 disease_name，如果不存在就用空字符串。
-            needs_more_info=needs_more,
-            retry_count=new_count,
-        )
         return {
             "diagnosis": diagnosis_data,
-            "needs_more_info": needs_more,
-            "diagnosis_retry_count": new_count,
+            "candidate_diseases": candidates_with_paths,
+            "human_review_status": "awaiting_diagnosis",
             "current_agent": "diagnosis",
         }
 
-    # -------------------------------------------------------------------------
-    # 5. 错误处理
-    # -------------------------------------------------------------------------
-    # 如果 LLM 返回的内容无法解析为 JSON。
     except json.JSONDecodeError as e:
         logger.error("diagnosis_agent.json_error", error=str(e))
         return {
             "diagnosis": None,
-            "needs_more_info": False,
-            "diagnosis_retry_count": state.diagnosis_retry_count,
+            "candidate_diseases": candidates_with_paths,
+            "human_review_status": "awaiting_diagnosis",
             "current_agent": "diagnosis",
             "errors": state.errors + [f"Diagnosis JSON parse error: {e}"],
         }
@@ -214,8 +272,8 @@ def diagnosis_agent(state) -> dict:
         logger.error("diagnosis_agent.error", error=str(e))
         return {
             "diagnosis": None,
-            "needs_more_info": False,
-            "diagnosis_retry_count": state.diagnosis_retry_count,
+            "candidate_diseases": candidates_with_paths,
+            "human_review_status": "awaiting_diagnosis",
             "current_agent": "diagnosis",
             "errors": state.errors + [f"Diagnosis error: {e}"],
         }

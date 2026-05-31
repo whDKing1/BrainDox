@@ -1,0 +1,14 @@
+{
+  "name": "vfonts",
+  "version": "0.0.3",
+  "description": "Integreted fonts for easy usage.",
+  "keywords": [
+    "fonts",
+    "font",
+    "css",
+    "vue"
+  ],
+  "author": "07akioni",
+  "license": "MIT",
+  "scripts": {}
+}

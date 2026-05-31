@@ -1,0 +1,1 @@
+export { iconWrapperProps, NIconWrapper } from "./src/IconWrapper.mjs";

@@ -1,0 +1,897 @@
+import { off, on } from 'evtd';
+import { getPreciseEventTarget } from 'seemly';
+import { useMergedState } from 'vooks';
+import { cloneVNode, computed, defineComponent, h, nextTick, normalizeStyle, onBeforeUnmount, onMounted, onUpdated, ref, toRef, Transition, vShow, watch, watchEffect, withDirectives } from 'vue';
+import { VResizeObserver } from 'vueuc';
+import { useConfig, useTheme, useThemeClass } from "../../_mixins/index.mjs";
+import { flatten, keep, resolveSlotWithTypedProps } from "../../_utils/index.mjs";
+import { carouselLight } from "../styles/index.mjs";
+import NCarouselArrow from "./CarouselArrow.mjs";
+import { provideCarouselContext } from "./CarouselContext.mjs";
+import NCarouselDots from "./CarouselDots.mjs";
+import NCarouselItem, { isCarouselItem } from "./CarouselItem.mjs";
+import style from "./styles/index.cssr.mjs";
+import { addDuplicateSlides, calculateSize, clampValue, getDisplayIndex, getDisplayTotalView, getNextIndex, getPrevIndex, getRealIndex, isTouchEvent, resolveSpeed } from "./utils/index.mjs";
+const transitionProperties = ['transitionDuration', 'transitionTimingFunction'];
+export const carouselProps = Object.assign(Object.assign({}, useTheme.props), {
+  defaultIndex: {
+    type: Number,
+    default: 0
+  },
+  currentIndex: Number,
+  showArrow: Boolean,
+  dotType: {
+    type: String,
+    default: 'dot'
+  },
+  dotPlacement: {
+    type: String,
+    default: 'bottom'
+  },
+  slidesPerView: {
+    type: [Number, String],
+    default: 1
+  },
+  spaceBetween: {
+    type: Number,
+    default: 0
+  },
+  centeredSlides: Boolean,
+  direction: {
+    type: String,
+    default: 'horizontal'
+  },
+  autoplay: Boolean,
+  interval: {
+    type: Number,
+    default: 5000
+  },
+  loop: {
+    type: Boolean,
+    default: true
+  },
+  effect: {
+    type: String,
+    default: 'slide'
+  },
+  showDots: {
+    type: Boolean,
+    default: true
+  },
+  trigger: {
+    type: String,
+    default: 'click'
+  },
+  transitionStyle: {
+    type: Object,
+    default: () => ({
+      transitionDuration: '300ms'
+    })
+  },
+  transitionProps: Object,
+  draggable: Boolean,
+  prevSlideStyle: [Object, String],
+  nextSlideStyle: [Object, String],
+  touchable: {
+    type: Boolean,
+    default: true
+  },
+  mousewheel: Boolean,
+  keyboard: Boolean,
+  'onUpdate:currentIndex': Function,
+  onUpdateCurrentIndex: Function
+});
+// only one carousel is allowed to trigger touch globally
+let globalDragging = false;
+export default defineComponent({
+  name: 'Carousel',
+  props: carouselProps,
+  slots: Object,
+  setup(props) {
+    const {
+      mergedClsPrefixRef,
+      inlineThemeDisabled
+    } = useConfig(props);
+    // Dom
+    const selfElRef = ref(null);
+    const slidesElRef = ref(null);
+    const slideElsRef = ref([]);
+    const slideVNodesRef = {
+      value: []
+    };
+    // Computed states
+    const verticalRef = computed(() => props.direction === 'vertical');
+    const sizeAxisRef = computed(() => verticalRef.value ? 'height' : 'width');
+    const spaceAxisRef = computed(() => verticalRef.value ? 'bottom' : 'right');
+    const sequenceLayoutRef = computed(() => props.effect === 'slide');
+    const duplicatedableRef = computed(
+    // duplicate the copy operation in `slide` mode,
+    // because only its DOM is sequence layout
+    () => props.loop && props.slidesPerView === 1 && sequenceLayoutRef.value);
+    // user wants to control the transition animation
+    const userWantsControlRef = computed(() => props.effect === 'custom');
+    // used to calculate total views
+    const displaySlidesPerViewRef = computed(() => !sequenceLayoutRef.value || props.centeredSlides ? 1 : props.slidesPerView);
+    // used to calculate the size of each slide
+    const realSlidesPerViewRef = computed(() => userWantsControlRef.value ? 1 : props.slidesPerView);
+    // we automatically calculate total view for special slides per view
+    const autoSlideSizeRef = computed(() => displaySlidesPerViewRef.value === 'auto' || props.slidesPerView === 'auto' && props.centeredSlides);
+    // Carousel size
+    const perViewSizeRef = ref({
+      width: 0,
+      height: 0
+    });
+    const slideSizesTrigger = ref(0);
+    const slideSizesRef = computed(() => {
+      const {
+        value: slidesEls
+      } = slideElsRef;
+      if (!slidesEls.length) return [];
+      // eslint-disable-next-line ts/no-unused-expressions
+      slideSizesTrigger.value;
+      const {
+        value: autoSlideSize
+      } = autoSlideSizeRef;
+      if (autoSlideSize) {
+        return slidesEls.map(slide => calculateSize(slide));
+      }
+      const {
+        value: slidesPerView
+      } = realSlidesPerViewRef;
+      const {
+        value: perViewSize
+      } = perViewSizeRef;
+      const {
+        value: axis
+      } = sizeAxisRef;
+      let axisSize = perViewSize[axis];
+      if (slidesPerView !== 'auto') {
+        const {
+          spaceBetween
+        } = props;
+        const remaining = axisSize - (slidesPerView - 1) * spaceBetween;
+        const percentage = 1 / Math.max(1, slidesPerView);
+        axisSize = remaining * percentage;
+      }
+      const slideSize = Object.assign(Object.assign({}, perViewSize), {
+        [axis]: axisSize
+      });
+      return slidesEls.map(() => slideSize);
+    });
+    // The translate required to reach each slide
+    const slideTranlatesRef = computed(() => {
+      const {
+        value: slideSizes
+      } = slideSizesRef;
+      if (!slideSizes.length) return [];
+      const {
+        centeredSlides,
+        spaceBetween
+      } = props;
+      const {
+        value: axis
+      } = sizeAxisRef;
+      const {
+        [axis]: perViewSize
+      } = perViewSizeRef.value;
+      let previousTranslate = 0;
+      return slideSizes.map(({
+        [axis]: slideSize
+      }) => {
+        let translate = previousTranslate;
+        if (centeredSlides) {
+          translate += (slideSize - perViewSize) / 2;
+        }
+        previousTranslate += slideSize + spaceBetween;
+        return translate;
+      });
+    });
+    // Styles
+    const isMountedRef = ref(false);
+    const transitionStyleRef = computed(() => {
+      const {
+        transitionStyle
+      } = props;
+      return transitionStyle ? keep(transitionStyle, transitionProperties) : {};
+    });
+    const speedRef = computed(() => userWantsControlRef.value ? 0 : resolveSpeed(transitionStyleRef.value.transitionDuration));
+    const slideStylesRef = computed(() => {
+      const {
+        value: slidesEls
+      } = slideElsRef;
+      if (!slidesEls.length) return [];
+      const useComputedSize = !(autoSlideSizeRef.value || realSlidesPerViewRef.value === 1);
+      const getSlideSize = index => {
+        if (useComputedSize) {
+          const {
+            value: axis
+          } = sizeAxisRef;
+          return {
+            [axis]: `${slideSizesRef.value[index][axis]}px`
+          };
+        }
+      };
+      if (userWantsControlRef.value) {
+        // We center each slide when user wants to control the transition animation,
+        // so there is no need to calculate the offset
+        return slidesEls.map((_, i) => getSlideSize(i));
+      }
+      const {
+        effect,
+        spaceBetween
+      } = props;
+      const {
+        value: spaceAxis
+      } = spaceAxisRef;
+      return slidesEls.reduce((styles, _, i) => {
+        const style = Object.assign(Object.assign({}, getSlideSize(i)), {
+          [`margin-${spaceAxis}`]: `${spaceBetween}px`
+        });
+        styles.push(style);
+        if (isMountedRef.value && (effect === 'fade' || effect === 'card')) {
+          Object.assign(style, transitionStyleRef.value);
+        }
+        return styles;
+      }, []);
+    });
+    // Total
+    const totalViewRef = computed(() => {
+      const {
+        value: slidesPerView
+      } = displaySlidesPerViewRef;
+      const {
+        length: totalSlides
+      } = slideElsRef.value;
+      if (slidesPerView !== 'auto') {
+        return Math.max(totalSlides - slidesPerView, 0) + 1;
+      } else {
+        const {
+          value: slideSizes
+        } = slideSizesRef;
+        const {
+          length
+        } = slideSizes;
+        if (!length) return totalSlides;
+        const {
+          value: translates
+        } = slideTranlatesRef;
+        const {
+          value: axis
+        } = sizeAxisRef;
+        const perViewSize = perViewSizeRef.value[axis];
+        let lastViewSize = slideSizes[slideSizes.length - 1][axis];
+        let i = length;
+        while (i > 1 && lastViewSize < perViewSize) {
+          i--;
+          lastViewSize += translates[i] - translates[i - 1];
+        }
+        return clampValue(i + 1, 1, length);
+      }
+    });
+    const displayTotalViewRef = computed(() => getDisplayTotalView(totalViewRef.value, duplicatedableRef.value));
+    // Index
+    const defaultRealIndex = getRealIndex(props.defaultIndex, duplicatedableRef.value);
+    const uncontrolledDisplayIndexRef = ref(getDisplayIndex(defaultRealIndex, totalViewRef.value, duplicatedableRef.value));
+    const mergedDisplayIndexRef = useMergedState(toRef(props, 'currentIndex'), uncontrolledDisplayIndexRef);
+    const realIndexRef = computed(() => getRealIndex(mergedDisplayIndexRef.value, duplicatedableRef.value));
+    // Reality methods
+    function toRealIndex(index) {
+      var _a, _b;
+      index = clampValue(index, 0, totalViewRef.value - 1);
+      const displayIndex = getDisplayIndex(index, totalViewRef.value, duplicatedableRef.value);
+      const {
+        value: lastDisplayIndex
+      } = mergedDisplayIndexRef;
+      if (displayIndex !== mergedDisplayIndexRef.value) {
+        uncontrolledDisplayIndexRef.value = displayIndex;
+        (_a = props['onUpdate:currentIndex']) === null || _a === void 0 ? void 0 : _a.call(props, displayIndex, lastDisplayIndex);
+        (_b = props.onUpdateCurrentIndex) === null || _b === void 0 ? void 0 : _b.call(props, displayIndex, lastDisplayIndex);
+      }
+    }
+    function getRealPrevIndex(index = realIndexRef.value) {
+      return getPrevIndex(index, totalViewRef.value, props.loop);
+    }
+    function getRealNextIndex(index = realIndexRef.value) {
+      return getNextIndex(index, totalViewRef.value, props.loop);
+    }
+    function isRealPrev(slideOrIndex) {
+      const index = getSlideIndex(slideOrIndex);
+      return index !== null && getRealPrevIndex() === index && totalViewRef.value > 1;
+    }
+    function isRealNext(slideOrIndex) {
+      const index = getSlideIndex(slideOrIndex);
+      return index !== null && getRealNextIndex() === index && totalViewRef.value > 1;
+    }
+    function isRealActive(slideOrIndex) {
+      return realIndexRef.value === getSlideIndex(slideOrIndex);
+    }
+    // Display methods
+    // They are used to deal with the actual values displayed on the UI
+    function isDisplayActive(index) {
+      return mergedDisplayIndexRef.value === index;
+    }
+    function isPrevDisabled() {
+      return getRealPrevIndex() === null;
+    }
+    function isNextDisabled() {
+      return getRealNextIndex() === null;
+    }
+    // To
+    let expectedTransitionDirection = 0;
+    function to(index) {
+      const realIndex = clampValue(getRealIndex(index, duplicatedableRef.value), 0, totalViewRef.value);
+      if (index !== mergedDisplayIndexRef.value || realIndex !== realIndexRef.value) {
+        toRealIndex(realIndex);
+      }
+    }
+    function prev() {
+      const prevIndex = getRealPrevIndex();
+      if (prevIndex !== null) {
+        expectedTransitionDirection = -1;
+        toRealIndex(prevIndex);
+      }
+    }
+    function next() {
+      const nextIndex = getRealNextIndex();
+      if (nextIndex !== null) {
+        expectedTransitionDirection = 1;
+        toRealIndex(nextIndex);
+      }
+    }
+    // Translate to
+    let inTransition = false;
+    function prevIfSlideTransitionEnd() {
+      if (!inTransition || !duplicatedableRef.value) prev();
+    }
+    function nextIfSlideTransitionEnd() {
+      if (!inTransition || !duplicatedableRef.value) next();
+    }
+    // record the translate of each slide, so that it can be restored at touch
+    let previousTranslate = 0;
+    const translateStyleRef = ref({});
+    function updateTranslate(translate, speed = 0) {
+      translateStyleRef.value = Object.assign({}, transitionStyleRef.value, {
+        transform: verticalRef.value ? `translateY(${-translate}px)` : `translateX(${-translate}px)`,
+        transitionDuration: `${speed}ms`
+      });
+    }
+    function fixTranslate(speed = 0) {
+      if (sequenceLayoutRef.value) {
+        translateTo(realIndexRef.value, speed);
+      } else if (previousTranslate !== 0) {
+        if (!inTransition && speed > 0) {
+          inTransition = true;
+        }
+        updateTranslate(previousTranslate = 0, speed);
+      }
+    }
+    function translateTo(index, speed) {
+      const translate = getTranslate(index);
+      if (translate !== previousTranslate && speed > 0) {
+        inTransition = true;
+      }
+      previousTranslate = getTranslate(realIndexRef.value);
+      updateTranslate(translate, speed);
+    }
+    function getTranslate(index) {
+      let translate;
+      // Deal with auto slides pre view
+      if (index >= totalViewRef.value - 1) {
+        translate = getLastViewTranslate();
+      } else {
+        translate = slideTranlatesRef.value[index] || 0;
+      }
+      return translate;
+    }
+    function getLastViewTranslate() {
+      if (displaySlidesPerViewRef.value === 'auto') {
+        const {
+          value: axis
+        } = sizeAxisRef;
+        const {
+          [axis]: perViewSize
+        } = perViewSizeRef.value;
+        const {
+          value: translates
+        } = slideTranlatesRef;
+        const lastTranslate = translates[translates.length - 1];
+        let overallSize;
+        if (lastTranslate === undefined) {
+          overallSize = perViewSize;
+        } else {
+          const {
+            value: slideSizes
+          } = slideSizesRef;
+          overallSize = lastTranslate + slideSizes[slideSizes.length - 1][axis];
+        }
+        // Bring the last slide to the edge
+        return overallSize - perViewSize;
+      } else {
+        const {
+          value: translates
+        } = slideTranlatesRef;
+        return translates[totalViewRef.value - 1] || 0;
+      }
+    }
+    // Provide
+    const carouselContext = {
+      currentIndexRef: mergedDisplayIndexRef,
+      to,
+      prev: prevIfSlideTransitionEnd,
+      next: nextIfSlideTransitionEnd,
+      isVertical: () => verticalRef.value,
+      isHorizontal: () => !verticalRef.value,
+      isPrev: isRealPrev,
+      isNext: isRealNext,
+      isActive: isRealActive,
+      isPrevDisabled,
+      isNextDisabled,
+      getSlideIndex,
+      getSlideStyle,
+      addSlide,
+      removeSlide,
+      onCarouselItemClick
+    };
+    provideCarouselContext(carouselContext);
+    function addSlide(slide) {
+      if (!slide) return;
+      slideElsRef.value.push(slide);
+    }
+    function removeSlide(slide) {
+      if (!slide) return;
+      const index = getSlideIndex(slide);
+      if (index !== -1) {
+        slideElsRef.value.splice(index, 1);
+      }
+    }
+    function getSlideIndex(slideOrIndex) {
+      return typeof slideOrIndex === 'number' ? slideOrIndex : slideOrIndex ? slideElsRef.value.indexOf(slideOrIndex) : -1;
+    }
+    function getSlideStyle(slide) {
+      const index = getSlideIndex(slide);
+      if (index !== -1) {
+        const styles = [slideStylesRef.value[index]];
+        const isPrev = carouselContext.isPrev(index);
+        const isNext = carouselContext.isNext(index);
+        if (isPrev) {
+          styles.push(props.prevSlideStyle || '');
+        }
+        if (isNext) {
+          styles.push(props.nextSlideStyle || '');
+        }
+        return normalizeStyle(styles);
+      }
+    }
+    // Drag
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let dragOffset = 0;
+    let dragStartTime = 0;
+    let dragging = false;
+    let isEffectiveDrag = false;
+    function onCarouselItemClick(index, event) {
+      let allowClick = !inTransition && !dragging && !isEffectiveDrag;
+      if (props.effect === 'card' && allowClick && !isRealActive(index)) {
+        to(index);
+        allowClick = false;
+      }
+      if (!allowClick) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }
+    // Autoplay
+    let autoplayTimer = null;
+    function stopAutoplay() {
+      if (autoplayTimer) {
+        clearInterval(autoplayTimer);
+        autoplayTimer = null;
+      }
+    }
+    function resetAutoplay() {
+      stopAutoplay();
+      const disabled = !props.autoplay || displayTotalViewRef.value < 2;
+      if (!disabled) {
+        autoplayTimer = window.setInterval(next, props.interval);
+      }
+    }
+    function handleTouchstart(event) {
+      var _a;
+      if (globalDragging) return;
+      if (!((_a = slidesElRef.value) === null || _a === void 0 ? void 0 : _a.contains(getPreciseEventTarget(event)))) {
+        return;
+      }
+      globalDragging = true;
+      dragging = true;
+      isEffectiveDrag = false;
+      dragStartTime = Date.now();
+      stopAutoplay();
+      if (event.type !== 'touchstart' && !event.target.isContentEditable) {
+        event.preventDefault();
+      }
+      const touchEvent = isTouchEvent(event) ? event.touches[0] : event;
+      if (verticalRef.value) {
+        dragStartY = touchEvent.clientY;
+      } else {
+        dragStartX = touchEvent.clientX;
+      }
+      if (props.touchable) {
+        on('touchmove', document, handleTouchmove);
+        on('touchend', document, handleTouchend);
+        on('touchcancel', document, handleTouchend);
+      }
+      if (props.draggable) {
+        on('mousemove', document, handleTouchmove);
+        on('mouseup', document, handleTouchend);
+      }
+    }
+    function handleTouchmove(event) {
+      const {
+        value: vertical
+      } = verticalRef;
+      const {
+        value: axis
+      } = sizeAxisRef;
+      const touchEvent = isTouchEvent(event) ? event.touches[0] : event;
+      const offset = vertical ? touchEvent.clientY - dragStartY : touchEvent.clientX - dragStartX;
+      const perViewSize = perViewSizeRef.value[axis];
+      dragOffset = clampValue(offset, -perViewSize, perViewSize);
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      if (sequenceLayoutRef.value) {
+        updateTranslate(previousTranslate - dragOffset, 0);
+      }
+    }
+    function handleTouchend() {
+      const {
+        value: realIndex
+      } = realIndexRef;
+      let currentIndex = realIndex;
+      if (!inTransition && dragOffset !== 0 && sequenceLayoutRef.value) {
+        const currentTranslate = previousTranslate - dragOffset;
+        const translates = [...slideTranlatesRef.value.slice(0, totalViewRef.value - 1), getLastViewTranslate()];
+        let prevOffset = null;
+        for (let i = 0; i < translates.length; i++) {
+          const offset = Math.abs(translates[i] - currentTranslate);
+          if (prevOffset !== null && prevOffset < offset) {
+            break;
+          }
+          prevOffset = offset;
+          currentIndex = i;
+        }
+      }
+      if (currentIndex === realIndex) {
+        const timeElapsed = Date.now() - dragStartTime;
+        const {
+          value: axis
+        } = sizeAxisRef;
+        const perViewSize = perViewSizeRef.value[axis];
+        // more than 50% width or faster than 0.4px per ms
+        if (dragOffset > perViewSize / 2 || dragOffset / timeElapsed > 0.4) {
+          prev();
+        } else if (dragOffset < -perViewSize / 2 || dragOffset / timeElapsed < -0.4) {
+          next();
+        }
+      }
+      if (currentIndex !== null && currentIndex !== realIndex) {
+        isEffectiveDrag = true;
+        toRealIndex(currentIndex);
+        void nextTick(() => {
+          if (!duplicatedableRef.value || uncontrolledDisplayIndexRef.value !== mergedDisplayIndexRef.value) {
+            fixTranslate(speedRef.value);
+          }
+        });
+      } else {
+        fixTranslate(speedRef.value);
+      }
+      resetDragStatus();
+      resetAutoplay();
+    }
+    function resetDragStatus() {
+      if (dragging) {
+        globalDragging = false;
+      }
+      dragging = false;
+      dragStartX = 0;
+      dragStartY = 0;
+      dragOffset = 0;
+      dragStartTime = 0;
+      off('touchmove', document, handleTouchmove);
+      off('touchend', document, handleTouchend);
+      off('touchcancel', document, handleTouchend);
+      off('mousemove', document, handleTouchmove);
+      off('mouseup', document, handleTouchend);
+    }
+    function handleTransitionEnd() {
+      if (sequenceLayoutRef.value && inTransition) {
+        const {
+          value: realIndex
+        } = realIndexRef;
+        translateTo(realIndex, 0);
+      } else {
+        resetAutoplay();
+      }
+      if (sequenceLayoutRef.value) {
+        translateStyleRef.value.transitionDuration = '0ms';
+      }
+      inTransition = false;
+    }
+    function handleMousewheel(event) {
+      event.preventDefault();
+      if (inTransition) return;
+      let {
+        deltaX,
+        deltaY
+      } = event;
+      if (event.shiftKey && !deltaX) {
+        deltaX = deltaY;
+      }
+      const prevMultiplier = -1;
+      const nextMultiplier = 1;
+      const m = (deltaX || deltaY) > 0 ? nextMultiplier : prevMultiplier;
+      let rx = 0;
+      let ry = 0;
+      if (verticalRef.value) {
+        ry = m;
+      } else {
+        rx = m;
+      }
+      const responseStep = 10;
+      if (ry * deltaY >= responseStep || rx * deltaX >= responseStep) {
+        if (m === nextMultiplier && !isNextDisabled()) {
+          next();
+        } else if (m === prevMultiplier && !isPrevDisabled()) {
+          prev();
+        }
+      }
+    }
+    function handleResize() {
+      perViewSizeRef.value = calculateSize(selfElRef.value, true);
+      resetAutoplay();
+    }
+    function handleSlideResize() {
+      if (autoSlideSizeRef.value) {
+        slideSizesTrigger.value++;
+      }
+    }
+    function handleMouseenter() {
+      if (props.autoplay) {
+        stopAutoplay();
+      }
+    }
+    function handleMouseleave() {
+      if (props.autoplay) {
+        resetAutoplay();
+      }
+    }
+    onMounted(() => {
+      watchEffect(resetAutoplay);
+      requestAnimationFrame(() => isMountedRef.value = true);
+    });
+    onBeforeUnmount(() => {
+      resetDragStatus();
+      stopAutoplay();
+    });
+    // Fix index when remounting
+    onUpdated(() => {
+      const {
+        value: slidesEls
+      } = slideElsRef;
+      const {
+        value: slideVNodes
+      } = slideVNodesRef;
+      const indexMap = new Map();
+      const getDisplayIndex = el => indexMap.has(el) ? indexMap.get(el) : -1;
+      let isChanged = false;
+      for (let i = 0; i < slidesEls.length; i++) {
+        const index = slideVNodes.findIndex(v => v.el === slidesEls[i]);
+        if (index !== i) {
+          isChanged = true;
+        }
+        indexMap.set(slidesEls[i], index);
+      }
+      if (isChanged) {
+        slidesEls.sort((a, b) => getDisplayIndex(a) - getDisplayIndex(b));
+      }
+    });
+    watch(realIndexRef, (nextRealIndex, lastRealIndex) => {
+      if (nextRealIndex === lastRealIndex) {
+        expectedTransitionDirection = 0;
+        return;
+      }
+      resetAutoplay();
+      if (sequenceLayoutRef.value) {
+        if (duplicatedableRef.value) {
+          const {
+            value: length
+          } = totalViewRef;
+          if (expectedTransitionDirection === -1 && lastRealIndex === 1 && nextRealIndex === length - 2) {
+            nextRealIndex = 0;
+          } else if (expectedTransitionDirection === 1 && lastRealIndex === length - 2 && nextRealIndex === 1) {
+            nextRealIndex = length - 1;
+          }
+        }
+        translateTo(nextRealIndex, speedRef.value);
+      } else {
+        fixTranslate();
+      }
+      expectedTransitionDirection = 0;
+    }, {
+      immediate: true
+    });
+    watch([duplicatedableRef, displaySlidesPerViewRef], () => void nextTick(() => {
+      toRealIndex(realIndexRef.value);
+    }));
+    watch(slideTranlatesRef, () => {
+      if (sequenceLayoutRef.value) {
+        fixTranslate();
+      }
+    }, {
+      deep: true
+    });
+    watch(sequenceLayoutRef, value => {
+      if (!value) {
+        inTransition = false;
+        // if the current mode does not support translate, reset the position of the wrapper
+        updateTranslate(previousTranslate = 0);
+      } else {
+        fixTranslate();
+      }
+    });
+    const slidesControlListenersRef = computed(() => {
+      return {
+        onTouchstartPassive: props.touchable ? handleTouchstart : undefined,
+        onMousedown: props.draggable ? handleTouchstart : undefined,
+        onWheel: props.mousewheel ? handleMousewheel : undefined
+      };
+    });
+    const arrowSlotPropsRef = computed(() => Object.assign(Object.assign({}, keep(carouselContext, ['to', 'prev', 'next', 'isPrevDisabled', 'isNextDisabled'])), {
+      total: displayTotalViewRef.value,
+      currentIndex: mergedDisplayIndexRef.value
+    }));
+    const dotSlotPropsRef = computed(() => ({
+      total: displayTotalViewRef.value,
+      currentIndex: mergedDisplayIndexRef.value,
+      to: carouselContext.to
+    }));
+    const caroulseExposedMethod = {
+      getCurrentIndex: () => mergedDisplayIndexRef.value,
+      to,
+      prev,
+      next
+    };
+    const themeRef = useTheme('Carousel', '-carousel', style, carouselLight, props, mergedClsPrefixRef);
+    const cssVarsRef = computed(() => {
+      const {
+        common: {
+          cubicBezierEaseInOut
+        },
+        self: {
+          dotSize,
+          dotColor,
+          dotColorActive,
+          dotColorFocus,
+          dotLineWidth,
+          dotLineWidthActive,
+          arrowColor
+        }
+      } = themeRef.value;
+      return {
+        '--n-bezier': cubicBezierEaseInOut,
+        '--n-dot-color': dotColor,
+        '--n-dot-color-focus': dotColorFocus,
+        '--n-dot-color-active': dotColorActive,
+        '--n-dot-size': dotSize,
+        '--n-dot-line-width': dotLineWidth,
+        '--n-dot-line-width-active': dotLineWidthActive,
+        '--n-arrow-color': arrowColor
+      };
+    });
+    const themeClassHandle = inlineThemeDisabled ? useThemeClass('carousel', undefined, cssVarsRef, props) : undefined;
+    return Object.assign(Object.assign({
+      mergedClsPrefix: mergedClsPrefixRef,
+      selfElRef,
+      slidesElRef,
+      slideVNodes: slideVNodesRef,
+      duplicatedable: duplicatedableRef,
+      userWantsControl: userWantsControlRef,
+      autoSlideSize: autoSlideSizeRef,
+      realIndex: realIndexRef,
+      slideStyles: slideStylesRef,
+      translateStyle: translateStyleRef,
+      slidesControlListeners: slidesControlListenersRef,
+      handleTransitionEnd,
+      handleResize,
+      handleSlideResize,
+      handleMouseenter,
+      handleMouseleave,
+      isActive: isDisplayActive,
+      arrowSlotProps: arrowSlotPropsRef,
+      dotSlotProps: dotSlotPropsRef
+    }, caroulseExposedMethod), {
+      cssVars: inlineThemeDisabled ? undefined : cssVarsRef,
+      themeClass: themeClassHandle === null || themeClassHandle === void 0 ? void 0 : themeClassHandle.themeClass,
+      onRender: themeClassHandle === null || themeClassHandle === void 0 ? void 0 : themeClassHandle.onRender
+    });
+  },
+  render() {
+    var _a;
+    const {
+      mergedClsPrefix,
+      showArrow,
+      userWantsControl,
+      slideStyles,
+      dotType,
+      dotPlacement,
+      slidesControlListeners,
+      transitionProps = {},
+      arrowSlotProps,
+      dotSlotProps,
+      $slots: {
+        default: defaultSlot,
+        dots: dotsSlot,
+        arrow: arrowSlot
+      }
+    } = this;
+    const children = defaultSlot && flatten(defaultSlot()) || [];
+    let slides = filterCarouselItem(children);
+    if (!slides.length) {
+      slides = children.map(ch => h(NCarouselItem, null, {
+        default: () => cloneVNode(ch)
+      }));
+    }
+    if (this.duplicatedable) {
+      slides = addDuplicateSlides(slides);
+    }
+    this.slideVNodes.value = slides;
+    // When users need to customize the size of the slide,
+    // we listen to them to fix the current translate
+    if (this.autoSlideSize) {
+      slides = slides.map(slide => h(VResizeObserver, {
+        onResize: this.handleSlideResize
+      }, {
+        default: () => slide
+      }));
+    }
+    (_a = this.onRender) === null || _a === void 0 ? void 0 : _a.call(this);
+    return h("div", Object.assign({
+      ref: "selfElRef",
+      class: [this.themeClass, `${mergedClsPrefix}-carousel`, this.direction === 'vertical' && `${mergedClsPrefix}-carousel--vertical`, this.showArrow && `${mergedClsPrefix}-carousel--show-arrow`, `${mergedClsPrefix}-carousel--${dotPlacement}`, `${mergedClsPrefix}-carousel--${this.direction}`, `${mergedClsPrefix}-carousel--${this.effect}`, userWantsControl && `${mergedClsPrefix}-carousel--usercontrol`],
+      style: this.cssVars
+    }, slidesControlListeners, {
+      onMouseenter: this.handleMouseenter,
+      onMouseleave: this.handleMouseleave
+    }), h(VResizeObserver, {
+      onResize: this.handleResize
+    }, {
+      default: () => h("div", {
+        ref: "slidesElRef",
+        class: `${mergedClsPrefix}-carousel__slides`,
+        role: "listbox",
+        style: this.translateStyle,
+        onTransitionend: this.handleTransitionEnd
+      }, userWantsControl ? slides.map((slide, i) => h("div", {
+        style: slideStyles[i],
+        key: i
+      }, withDirectives(h(Transition, Object.assign({}, transitionProps), {
+        default: () => slide
+      }), [[vShow, this.isActive(i)]]))) : slides)
+    }), this.showDots && dotSlotProps.total > 1 && resolveSlotWithTypedProps(dotsSlot, dotSlotProps, () => [h(NCarouselDots, {
+      key: dotType + dotPlacement,
+      total: dotSlotProps.total,
+      currentIndex: dotSlotProps.currentIndex,
+      dotType: dotType,
+      trigger: this.trigger,
+      keyboard: this.keyboard
+    })]), showArrow && resolveSlotWithTypedProps(arrowSlot, arrowSlotProps, () => [h(NCarouselArrow, null)]));
+  }
+});
+function filterCarouselItem(vnodes) {
+  return vnodes.reduce((carouselItems, vnode) => {
+    if (isCarouselItem(vnode)) {
+      carouselItems.push(vnode);
+    }
+    return carouselItems;
+  }, []);
+}

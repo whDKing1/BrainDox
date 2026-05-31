@@ -1,0 +1,11 @@
+@font-face {
+  font-family: "v-sans";
+  font-weight: 400;
+  src: url("./assets/Roboto-Regular.ttf");
+}
+
+@font-face {
+  font-family: "v-sans";
+  font-weight: 500;
+  src: url("./assets/Roboto-Medium.ttf");
+}

@@ -1,0 +1,1 @@
+export { collapseTransitionProps, default as NCollapseTransition } from "./src/CollapseTransition.mjs";

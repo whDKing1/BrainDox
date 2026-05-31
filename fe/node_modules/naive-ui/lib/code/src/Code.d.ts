@@ -1,0 +1,225 @@
+import type { PropType } from 'vue';
+import type { Hljs } from '../../_mixins';
+import type { ExtractPublicPropTypes } from '../../_utils';
+export declare const codeProps: {
+    language: StringConstructor;
+    code: {
+        type: StringConstructor;
+        default: string;
+    };
+    trim: {
+        type: BooleanConstructor;
+        default: boolean;
+    };
+    hljs: PropType<Hljs>;
+    uri: BooleanConstructor;
+    inline: BooleanConstructor;
+    wordWrap: BooleanConstructor;
+    showLineNumbers: BooleanConstructor;
+    internalFontSize: NumberConstructor;
+    internalNoHighlight: BooleanConstructor;
+    theme: PropType<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>;
+    themeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>>;
+    builtinThemeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>>;
+};
+export type CodeProps = ExtractPublicPropTypes<typeof codeProps>;
+declare const _default: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+    language: StringConstructor;
+    code: {
+        type: StringConstructor;
+        default: string;
+    };
+    trim: {
+        type: BooleanConstructor;
+        default: boolean;
+    };
+    hljs: PropType<Hljs>;
+    uri: BooleanConstructor;
+    inline: BooleanConstructor;
+    wordWrap: BooleanConstructor;
+    showLineNumbers: BooleanConstructor;
+    internalFontSize: NumberConstructor;
+    internalNoHighlight: BooleanConstructor;
+    theme: PropType<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>;
+    themeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>>;
+    builtinThemeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>>;
+}>, {
+    mergedClsPrefix: import("vue").Ref<string, string>;
+    codeRef: import("vue").Ref<HTMLElement | null, HTMLElement | null>;
+    mergedShowLineNumbers: import("vue").ComputedRef<boolean>;
+    lineNumbers: import("vue").ComputedRef<string>;
+    cssVars: import("vue").ComputedRef<{
+        '--n-font-size': string;
+        '--n-font-family': string;
+        '--n-font-weight-strong': string;
+        '--n-bezier': string;
+        '--n-text-color': string;
+        '--n-mono-3': string;
+        '--n-hue-1': string;
+        '--n-hue-2': string;
+        '--n-hue-3': string;
+        '--n-hue-4': string;
+        '--n-hue-5': string;
+        '--n-hue-5-2': string;
+        '--n-hue-6': string;
+        '--n-hue-6-2': string;
+        '--n-line-number-text-color': string;
+    }> | undefined;
+    themeClass: import("vue").Ref<string, string> | undefined;
+    onRender: (() => void) | undefined;
+}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+    language: StringConstructor;
+    code: {
+        type: StringConstructor;
+        default: string;
+    };
+    trim: {
+        type: BooleanConstructor;
+        default: boolean;
+    };
+    hljs: PropType<Hljs>;
+    uri: BooleanConstructor;
+    inline: BooleanConstructor;
+    wordWrap: BooleanConstructor;
+    showLineNumbers: BooleanConstructor;
+    internalFontSize: NumberConstructor;
+    internalNoHighlight: BooleanConstructor;
+    theme: PropType<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>;
+    themeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>>;
+    builtinThemeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Code", {
+        textColor: string;
+        fontSize: string;
+        fontWeightStrong: string;
+        'mono-3': string;
+        'hue-1': string;
+        'hue-2': string;
+        'hue-3': string;
+        'hue-4': string;
+        'hue-5': string;
+        'hue-5-2': string;
+        'hue-6': string;
+        'hue-6-2': string;
+        lineNumberTextColor: string;
+    }, any>>>;
+}>> & Readonly<{}>, {
+    code: string;
+    inline: boolean;
+    trim: boolean;
+    uri: boolean;
+    wordWrap: boolean;
+    showLineNumbers: boolean;
+    internalNoHighlight: boolean;
+}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+export default _default;

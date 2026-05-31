@@ -1,0 +1,1 @@
+export { mentionProps, default as NMention } from "./src/Mention.mjs";

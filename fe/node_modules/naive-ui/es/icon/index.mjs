@@ -1,0 +1,1 @@
+export { iconProps, NIcon } from "./src/Icon.mjs";

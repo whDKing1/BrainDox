@@ -1,0 +1,1 @@
+export { inputOtpProps, default as NInputOtp } from "./src/InputOtp.mjs";

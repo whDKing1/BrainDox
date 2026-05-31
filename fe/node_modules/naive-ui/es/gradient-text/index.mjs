@@ -1,0 +1,1 @@
+export { gradientTextProps, default as NGradientText } from "./src/GradientText.mjs";

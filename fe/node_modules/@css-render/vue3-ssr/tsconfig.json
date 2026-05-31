@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.esm.json",
+  "include": [
+    "src/**/*",
+    "__tests__/**/*"
+  ],
+  "compilerOptions": {
+    "rootDir": ".",
+    "types": [
+      "jest"
+    ]
+  }
+}

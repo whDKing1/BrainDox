@@ -1,0 +1,22 @@
+import { TreeNode, RawNode, InputMergedKeys, Key, GetNonLeafKeysOptions, GetChildren } from './interface';
+export declare function toArray<T>(arg: T): T extends any[] ? T : T[];
+export declare const TRAVERSE_COMMAND: {
+    STOP: string;
+};
+export declare function traverseWithCb<R, G, I>(treeNode: TreeNode<R, G, I>, callback: (treeNode: TreeNode<R, G, I>) => any): void;
+export declare function getNonLeafKeys<R, G, I>(treeNodes: Array<TreeNode<R, G, I>>, options?: GetNonLeafKeysOptions): Key[];
+export declare function isLeaf<R = RawNode, G = R, I = R>(rawNode: R | G | I, getChildren: GetChildren<R, G, I>): boolean;
+export declare function defaultGetChildren<R, G, I>(node: R | G | I): Array<R | G | I> | unknown;
+export declare function defaultGetKey(node: unknown): Key;
+export declare function isIgnored(): boolean;
+export declare function isShallowLoaded<R = RawNode, G = R, I = R>(rawNode: R, getChildren: GetChildren<R, G, I>): boolean;
+export declare function isDisabled(rawNode: RawNode): boolean;
+export declare function isExpilicitlyNotLoaded<R = RawNode, G = R, I = R>(rawNode: R | G | I, getChildren: GetChildren<R, G, I>): boolean;
+export declare function isNodeInvalid<R = RawNode, G = R, I = R>(rawNode: R | G | I, getChildren: GetChildren<R, G, I>): boolean;
+export declare function unwrapCheckedKeys(result?: InputMergedKeys | Key[] | null): Key[];
+export declare function unwrapIndeterminateKeys(result?: InputMergedKeys | Key[] | null): Key[];
+export declare function merge(originalKeys: Key[], keysToAdd: Key[]): Key[];
+export declare function minus(originalKeys: Key[], keysToRemove: Key[]): Key[];
+export declare function isGroup(rawNode: RawNode): boolean;
+export declare type IndexGetter = (key: Key) => number | null;
+export declare function createIndexGetter<R, G, I>(treeNodes: Array<TreeNode<R, G, I>>): IndexGetter;

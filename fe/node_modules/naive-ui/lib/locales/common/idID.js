@@ -1,0 +1,136 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const idID = {
+    name: 'id-ID',
+    global: {
+        undo: 'Membatalkan',
+        redo: 'Mem-perbarui',
+        confirm: 'Setuju',
+        clear: 'Bersihkan'
+    },
+    Popconfirm: {
+        positiveText: 'Setuju',
+        negativeText: 'Batalkan'
+    },
+    Cascader: {
+        placeholder: 'Mohon Pilih',
+        loading: 'Memuat',
+        loadingRequiredMessage: (label) => `Mohon muat semua ${label} sebelum memeriksa.`
+    },
+    Time: {
+        dateFormat: 'dd-MM-yyyy',
+        dateTimeFormat: 'dd-MM-yyyy HH:mm:ss'
+    },
+    DatePicker: {
+        yearFormat: 'yyyy',
+        monthFormat: 'MMM',
+        dayFormat: 'eeeeee',
+        yearTypeFormat: 'yyyy',
+        monthTypeFormat: 'MM-yyyy',
+        dateFormat: 'dd-MM-yyyy',
+        dateTimeFormat: 'dd-MM-yyyy HH:mm:ss',
+        quarterFormat: 'yyyy-qqq',
+        weekFormat: 'YYYY-w',
+        clear: 'Bersihkan',
+        now: 'Sekarang',
+        confirm: 'Setuju',
+        selectTime: 'Pilih Waktu',
+        selectDate: 'Pilih Tanggal',
+        datePlaceholder: 'Pilih Tanggal',
+        datetimePlaceholder: 'Pilih Tanggal dan Waktu',
+        monthPlaceholder: 'Pilih Bulan',
+        // FIXME: translation needed
+        yearPlaceholder: 'Pilih tahun',
+        quarterPlaceholder: 'Pilih perempat tahun',
+        weekPlaceholder: 'Select Week',
+        startDatePlaceholder: 'Tanggal Mulai',
+        endDatePlaceholder: 'Tanggal Selesai',
+        startDatetimePlaceholder: 'Tanggal dan Waktu Mulai',
+        endDatetimePlaceholder: 'Tanggal dan Waktu Selesai',
+        // FIXME: translation needed
+        startMonthPlaceholder: 'Awal bulan',
+        endMonthPlaceholder: 'Akhir bulan',
+        monthBeforeYear: true,
+        firstDayOfWeek: 6,
+        today: 'Hari ini'
+    },
+    DataTable: {
+        checkTableAll: 'Pilih semua pada tabel',
+        uncheckTableAll: 'Batalkan pilihan semua',
+        confirm: 'Setuju',
+        clear: 'Bersihkan'
+    },
+    LegacyTransfer: {
+        sourceTitle: 'Sumber',
+        targetTitle: 'Tujuan'
+    },
+    // TODO: translation
+    Transfer: {
+        selectAll: 'Pilih semua',
+        unselectAll: 'Batalkan pilihan',
+        clearAll: 'Bersihkan',
+        total: (num) => `Total ${num} item`,
+        selected: (num) => `${num} item dipilih`
+    },
+    Empty: {
+        description: 'Tidak ada data'
+    },
+    Select: {
+        placeholder: 'Mohon Pilih'
+    },
+    TimePicker: {
+        placeholder: 'Pilih Waktu',
+        positiveText: 'OK',
+        negativeText: 'Batalkan',
+        now: 'Sekarang',
+        clear: 'Bersihkan'
+    },
+    Pagination: {
+        goto: 'Ke',
+        selectionSuffix: 'halaman'
+    },
+    DynamicTags: {
+        add: 'Tambah'
+    },
+    Log: {
+        loading: 'Memuat'
+    },
+    Input: {
+        placeholder: 'Mohon isi'
+    },
+    InputNumber: {
+        placeholder: 'Mohon isi'
+    },
+    DynamicInput: {
+        create: 'Buat baru'
+    },
+    ThemeEditor: {
+        title: 'Pengaturan Tema',
+        clearAllVars: 'Bersihkan semua variabel',
+        clearSearch: 'Bersihkan pencarian',
+        filterCompName: 'Saring nama komponen',
+        filterVarName: 'Saring nama variabel',
+        import: 'Impor',
+        export: 'Ekspor',
+        restore: 'Setel ulang ke awal'
+    },
+    Image: {
+        tipPrevious: 'Gambar sebelumnya (←)',
+        tipNext: 'Gambar berikutnya (→)',
+        tipCounterclockwise: 'Berlawanan arah jarum jam',
+        tipClockwise: 'Searah jarum jam',
+        tipZoomOut: 'Zoom out',
+        tipZoomIn: 'Zoom in',
+        tipDownload: 'Download',
+        tipClose: 'Tutup (Esc)',
+        // TODO: translation
+        tipOriginalSize: 'Zoom ke ukuran asli'
+    },
+    Heatmap: {
+        less: 'less',
+        more: 'more',
+        monthFormat: 'MMM',
+        weekdayFormat: 'eeeeee'
+    }
+};
+exports.default = idID;

@@ -1,0 +1,5 @@
+export { gridProps, default as NGrid } from './src/Grid';
+export type { GridProps } from './src/Grid';
+export { gridItemProps, default as NGridItem } from './src/GridItem';
+export { gridItemProps as giProps, default as NGi } from './src/GridItem';
+export type { GridItemProps } from './src/GridItem';

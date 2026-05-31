@@ -1,0 +1,156 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+/* eslint-disable @typescript-eslint/strict-boolean-expressions */
+const vue_1 = require("vue");
+const vue3_ssr_1 = require("@css-render/vue3-ssr");
+const shared_1 = require("../../shared");
+const hiddenAttr = 'v-hidden';
+const style = (0, shared_1.c)('[v-hidden]', {
+    display: 'none!important'
+});
+exports.default = (0, vue_1.defineComponent)({
+    name: 'Overflow',
+    props: {
+        getCounter: Function,
+        getTail: Function,
+        updateCounter: Function,
+        onUpdateCount: Function,
+        onUpdateOverflow: Function
+    },
+    setup(props, { slots }) {
+        const selfRef = (0, vue_1.ref)(null);
+        const counterRef = (0, vue_1.ref)(null);
+        function deriveCounter(options) {
+            const { value: self } = selfRef;
+            const { getCounter, getTail } = props;
+            let counter;
+            if (getCounter !== undefined)
+                counter = getCounter();
+            else {
+                counter = counterRef.value;
+            }
+            if (!self || !counter)
+                return;
+            if (counter.hasAttribute(hiddenAttr)) {
+                counter.removeAttribute(hiddenAttr);
+            }
+            const { children } = self;
+            if (options.showAllItemsBeforeCalculate) {
+                for (const child of children) {
+                    if (child.hasAttribute(hiddenAttr)) {
+                        child.removeAttribute(hiddenAttr);
+                    }
+                }
+            }
+            const containerWidth = self.offsetWidth;
+            const childWidths = [];
+            const tail = slots.tail ? getTail === null || getTail === void 0 ? void 0 : getTail() : null;
+            let childWidthSum = tail ? tail.offsetWidth : 0;
+            let overflow = false;
+            const len = self.children.length - (slots.tail ? 1 : 0);
+            for (let i = 0; i < len - 1; ++i) {
+                if (i < 0)
+                    continue;
+                const child = children[i];
+                if (overflow) {
+                    if (!child.hasAttribute(hiddenAttr)) {
+                        child.setAttribute(hiddenAttr, '');
+                    }
+                    continue;
+                }
+                else if (child.hasAttribute(hiddenAttr)) {
+                    child.removeAttribute(hiddenAttr);
+                }
+                const childWidth = child.offsetWidth;
+                childWidthSum += childWidth;
+                childWidths[i] = childWidth;
+                if (childWidthSum > containerWidth) {
+                    const { updateCounter } = props;
+                    for (let j = i; j >= 0; --j) {
+                        const restCount = len - 1 - j;
+                        if (updateCounter !== undefined) {
+                            updateCounter(restCount);
+                        }
+                        else {
+                            counter.textContent = `${restCount}`;
+                        }
+                        const counterWidth = counter.offsetWidth;
+                        childWidthSum -= childWidths[j];
+                        if (childWidthSum + counterWidth <= containerWidth || j === 0) {
+                            overflow = true;
+                            i = j - 1;
+                            if (tail) {
+                                // tail too long or 1st element too long
+                                // we only consider tail now
+                                if (i === -1) {
+                                    tail.style.maxWidth = `${containerWidth - counterWidth}px`;
+                                    tail.style.boxSizing = 'border-box';
+                                }
+                                else {
+                                    tail.style.maxWidth = '';
+                                }
+                            }
+                            const { onUpdateCount } = props;
+                            if (onUpdateCount)
+                                onUpdateCount(restCount);
+                            break;
+                        }
+                    }
+                }
+            }
+            const { onUpdateOverflow } = props;
+            if (!overflow) {
+                if (onUpdateOverflow !== undefined) {
+                    onUpdateOverflow(false);
+                }
+                counter.setAttribute(hiddenAttr, '');
+            }
+            else {
+                if (onUpdateOverflow !== undefined) {
+                    onUpdateOverflow(true);
+                }
+            }
+        }
+        const ssrAdapter = (0, vue3_ssr_1.useSsrAdapter)();
+        style.mount({
+            id: 'vueuc/overflow',
+            head: true,
+            anchorMetaName: shared_1.cssrAnchorMetaName,
+            ssr: ssrAdapter
+        });
+        (0, vue_1.onMounted)(() => deriveCounter({
+            showAllItemsBeforeCalculate: false
+        }));
+        // besides onMounted, other case should be manually triggered, or we shoud watch items
+        return {
+            selfRef,
+            counterRef,
+            sync: deriveCounter
+        };
+    },
+    render() {
+        const { $slots } = this;
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        (0, vue_1.nextTick)(() => this.sync({
+            showAllItemsBeforeCalculate: false
+        }));
+        // It shouldn't have border
+        return (0, vue_1.h)('div', {
+            class: 'v-overflow',
+            ref: 'selfRef'
+        }, [
+            (0, vue_1.renderSlot)($slots, 'default'),
+            // $slots.counter should only has 1 element
+            $slots.counter
+                ? $slots.counter()
+                : (0, vue_1.h)('span', {
+                    style: {
+                        display: 'inline-block'
+                    },
+                    ref: 'counterRef'
+                }),
+            // $slots.tail should only has 1 element
+            $slots.tail ? $slots.tail() : null
+        ]);
+    }
+});

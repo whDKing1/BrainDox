@@ -1,0 +1,1 @@
+export { calendarProps, default as NCalendar } from "./src/Calendar.mjs";

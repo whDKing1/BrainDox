@@ -1,0 +1,1 @@
+export { countdownProps, default as NCountdown } from "./src/Countdown.mjs";

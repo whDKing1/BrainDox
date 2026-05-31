@@ -1,0 +1,1 @@
+export { alertProps, default as NAlert } from "./src/Alert.mjs";

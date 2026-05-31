@@ -1,0 +1,17 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ssr render to string should work 1`] = `
+"<style cssr-id=\\"mount-id\\">
+div {
+  color: red;
+}
+</style><div>Child</div>"
+`;
+
+exports[`ssr useSsrAdapter should work 1`] = `
+"<style cssr-id=\\"mount-id\\">
+div {
+  color: red;
+}
+</style><div>Child</div>"
+`;

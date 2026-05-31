@@ -1,0 +1,1 @@
+export { codeProps, default as NCode } from "./src/Code.mjs";

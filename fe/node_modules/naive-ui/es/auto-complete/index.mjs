@@ -1,0 +1,1 @@
+export { autoCompleteProps, default as NAutoComplete } from "./src/AutoComplete.mjs";

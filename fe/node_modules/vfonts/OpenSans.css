@@ -1,0 +1,11 @@
+@font-face {
+  font-family: "v-sans";
+  font-weight: 400;
+  src: url("./assets/OpenSans-Regular.ttf");
+}
+
+@font-face {
+  font-family: "v-sans";
+  font-weight: 600;
+  src: url("./assets/OpenSans-SemiBold.ttf");
+}

@@ -1,0 +1,134 @@
+const nbNO = {
+  name: 'nb-NO',
+  global: {
+    undo: 'Angre',
+    redo: 'Utfør likevel',
+    confirm: 'Bekreft',
+    clear: 'Tøm'
+  },
+  Popconfirm: {
+    positiveText: 'Bekreft',
+    negativeText: 'Avbryt'
+  },
+  Cascader: {
+    placeholder: 'Vennligst velg',
+    loading: 'Laster',
+    loadingRequiredMessage: label => `Vennligst last alle underpunkter av ${label} før du velger oppføringen.`
+  },
+  Time: {
+    dateFormat: 'dd.MM.yyyy',
+    dateTimeFormat: 'dd.MM.yyyy HH:mm:ss'
+  },
+  DatePicker: {
+    yearFormat: 'yyyy',
+    monthFormat: 'MMM',
+    dayFormat: 'eeeeee',
+    yearTypeFormat: 'yyyy',
+    monthTypeFormat: 'MM.yyyy',
+    dateFormat: 'dd.MM.yyyy',
+    dateTimeFormat: 'dd.MM.yyyy HH:mm:ss',
+    quarterFormat: 'yyyy-qqq',
+    weekFormat: 'YYYY-w',
+    clear: 'Tøm',
+    now: 'Nå',
+    confirm: 'Bekreft',
+    selectTime: 'Velg tid',
+    selectDate: 'Velg dato',
+    datePlaceholder: 'Velg dato',
+    datetimePlaceholder: 'Velg dato og tid',
+    monthPlaceholder: 'Velg måned',
+    // FIXME: translation needed
+    yearPlaceholder: 'Select Year',
+    quarterPlaceholder: 'Select Quarter',
+    weekPlaceholder: 'Select Week',
+    startDatePlaceholder: 'Startdato',
+    endDatePlaceholder: 'Sluttdato',
+    startDatetimePlaceholder: 'Startdato og -tid',
+    endDatetimePlaceholder: 'Sluttdato og -tid',
+    // FIXME: translation needed
+    startMonthPlaceholder: 'Start Month',
+    endMonthPlaceholder: 'End Month',
+    monthBeforeYear: true,
+    firstDayOfWeek: 0,
+    today: 'I dag'
+  },
+  DataTable: {
+    checkTableAll: 'Velg alt',
+    uncheckTableAll: 'Velg ingenting',
+    confirm: 'Bekreft',
+    clear: 'Tøm'
+  },
+  LegacyTransfer: {
+    sourceTitle: 'Kilde',
+    targetTitle: 'Mål'
+  },
+  // TODO: translation
+  Transfer: {
+    selectAll: 'Select all',
+    unselectAll: 'Unselect all',
+    clearAll: 'Clear',
+    total: num => `Total ${num} items`,
+    selected: num => `${num} items selected`
+  },
+  Empty: {
+    description: 'Ingen data'
+  },
+  Select: {
+    placeholder: 'Vennligst velg'
+  },
+  TimePicker: {
+    placeholder: 'Velg tid',
+    positiveText: 'OK',
+    negativeText: 'Avbryt',
+    now: 'Nå',
+    clear: 'Tøm'
+  },
+  Pagination: {
+    goto: 'Gå til',
+    selectionSuffix: 'side'
+  },
+  DynamicTags: {
+    add: 'Legg til'
+  },
+  Log: {
+    loading: 'Laster'
+  },
+  Input: {
+    placeholder: 'Vennligst fyll ut'
+  },
+  InputNumber: {
+    placeholder: 'Vennligst fyll ut'
+  },
+  DynamicInput: {
+    create: 'Opprett'
+  },
+  ThemeEditor: {
+    title: 'Temaredigerer',
+    clearAllVars: 'Nullstill alle variabler',
+    clearSearch: 'Tøm søk',
+    filterCompName: 'Filtrer etter komponentnavn',
+    filterVarName: 'Filtrer etter variabelnavn',
+    import: 'Importer',
+    export: 'Eksporter',
+    restore: 'Nullstill til standardvalg'
+  },
+  Image: {
+    tipPrevious: 'Previous picture (←)',
+    tipNext: 'Next picture (→)',
+    tipCounterclockwise: 'Counterclockwise',
+    tipClockwise: 'Clockwise',
+    tipZoomOut: 'Zoom out',
+    tipZoomIn: 'Zoom in',
+    tipDownload: 'Download',
+    tipClose: 'Close (Esc)',
+    // TODO: translation
+    tipOriginalSize: 'Zoom to original size'
+  },
+  Heatmap: {
+    less: 'mindre',
+    more: 'mer',
+    monthFormat: 'MMM',
+    weekdayFormat: 'eeeeee'
+  }
+};
+export default nbNO;

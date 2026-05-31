@@ -1,0 +1,1 @@
+export { dynamicInputProps, default as NDynamicInput } from "./src/DynamicInput.mjs";

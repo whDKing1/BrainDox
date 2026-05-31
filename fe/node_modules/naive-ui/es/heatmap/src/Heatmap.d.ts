@@ -1,0 +1,385 @@
+import type { PropType, SlotsType } from 'vue';
+import type { ExtractPublicPropTypes } from '../../_utils';
+import type { TooltipProps } from '../../tooltip';
+import type { DayRect } from './interface';
+import type { HeatmapData, HeatmapFirstDayOfWeek, HeatmapSlots } from './public-types';
+import type { HeatmapColorTheme } from './theme';
+export declare const heatmapProps: {
+    readonly activeColors: PropType<string[]>;
+    readonly colorTheme: PropType<HeatmapColorTheme>;
+    readonly data: PropType<HeatmapData>;
+    readonly loadingData: PropType<HeatmapData>;
+    readonly fillCalendarLeading: BooleanConstructor;
+    readonly firstDayOfWeek: {
+        readonly type: PropType<HeatmapFirstDayOfWeek>;
+        readonly default: 0;
+    };
+    readonly loading: BooleanConstructor;
+    readonly minimumColor: StringConstructor;
+    readonly showColorIndicator: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly showWeekLabels: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly showMonthLabels: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly size: {
+        readonly type: PropType<"small" | "medium" | "large">;
+        readonly default: "medium";
+    };
+    readonly tooltip: {
+        readonly type: PropType<TooltipProps | boolean>;
+        readonly default: false;
+    };
+    readonly xGap: PropType<number | string>;
+    readonly yGap: PropType<number | string>;
+    readonly theme: PropType<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>;
+    readonly themeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>>;
+    readonly builtinThemeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>>;
+};
+export type HeatmapProps = ExtractPublicPropTypes<typeof heatmapProps>;
+declare const _default: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+    readonly activeColors: PropType<string[]>;
+    readonly colorTheme: PropType<HeatmapColorTheme>;
+    readonly data: PropType<HeatmapData>;
+    readonly loadingData: PropType<HeatmapData>;
+    readonly fillCalendarLeading: BooleanConstructor;
+    readonly firstDayOfWeek: {
+        readonly type: PropType<HeatmapFirstDayOfWeek>;
+        readonly default: 0;
+    };
+    readonly loading: BooleanConstructor;
+    readonly minimumColor: StringConstructor;
+    readonly showColorIndicator: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly showWeekLabels: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly showMonthLabels: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly size: {
+        readonly type: PropType<"small" | "medium" | "large">;
+        readonly default: "medium";
+    };
+    readonly tooltip: {
+        readonly type: PropType<TooltipProps | boolean>;
+        readonly default: false;
+    };
+    readonly xGap: PropType<number | string>;
+    readonly yGap: PropType<number | string>;
+    readonly theme: PropType<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>;
+    readonly themeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>>;
+    readonly builtinThemeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>>;
+}>, {
+    weekLabels: import("vue").ComputedRef<{
+        label: string;
+        visible: boolean;
+    }[]>;
+    monthLabels: import("vue").ComputedRef<{
+        name: string;
+        colSpan: number;
+    }[]>;
+    mergedColors: import("vue").ComputedRef<string[]>;
+    mergedClsPrefix: import("vue").Ref<string, string>;
+    rtlEnabled: import("vue").Ref<import("../../config-provider/src/internal-interface").RtlItem | undefined, import("../../config-provider/src/internal-interface").RtlItem | undefined> | undefined;
+    locale: import("vue").Ref<{
+        less: string;
+        more: string;
+        monthFormat: string;
+        weekdayFormat: string;
+    }, {
+        less: string;
+        more: string;
+        monthFormat: string;
+        weekdayFormat: string;
+    }>;
+    cssVars: import("vue").ComputedRef<{
+        '--n-bezier': string;
+        '--n-font-size': string;
+        '--n-font-weight': string;
+        '--n-text-color': string;
+        '--n-border-radius': string;
+        '--n-border-color': string;
+        '--n-loading-color-start': string;
+        '--n-rect-size': string;
+        '--n-x-gap': string;
+        '--n-y-gap': string;
+    }> | undefined;
+    themeClass: import("vue").Ref<string, string> | undefined;
+    onRender: (() => void) | undefined;
+    heatmapMatrix: import("vue").ComputedRef<DayRect[][]>;
+    loadingClass: import("vue").Ref<string, string>;
+}, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+    readonly activeColors: PropType<string[]>;
+    readonly colorTheme: PropType<HeatmapColorTheme>;
+    readonly data: PropType<HeatmapData>;
+    readonly loadingData: PropType<HeatmapData>;
+    readonly fillCalendarLeading: BooleanConstructor;
+    readonly firstDayOfWeek: {
+        readonly type: PropType<HeatmapFirstDayOfWeek>;
+        readonly default: 0;
+    };
+    readonly loading: BooleanConstructor;
+    readonly minimumColor: StringConstructor;
+    readonly showColorIndicator: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly showWeekLabels: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly showMonthLabels: {
+        readonly type: BooleanConstructor;
+        readonly default: true;
+    };
+    readonly size: {
+        readonly type: PropType<"small" | "medium" | "large">;
+        readonly default: "medium";
+    };
+    readonly tooltip: {
+        readonly type: PropType<TooltipProps | boolean>;
+        readonly default: false;
+    };
+    readonly xGap: PropType<number | string>;
+    readonly yGap: PropType<number | string>;
+    readonly theme: PropType<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>;
+    readonly themeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>>;
+    readonly builtinThemeOverrides: PropType<import("../../_mixins/use-theme").ExtractThemeOverrides<import("../../_mixins").Theme<"Heatmap", {
+        activeColors: string[];
+        borderRadius: string;
+        borderColor: string;
+        textColor: string;
+        mininumColor: string;
+        fontWeight: string;
+        loadingColorStart: string;
+        loadingColorEnd: string;
+        rectSizeSmall: string;
+        rectSizeMedium: string;
+        rectSizeLarge: string;
+        borderRadiusSmall: string;
+        borderRadiusMedium: string;
+        borderRadiusLarge: string;
+        xGapSmall: string;
+        xGapMedium: string;
+        xGapLarge: string;
+        yGapSmall: string;
+        yGapMedium: string;
+        yGapLarge: string;
+        fontSizeSmall: string;
+        fontSizeMedium: string;
+        fontSizeLarge: string;
+    }, any>>>;
+}>> & Readonly<{}>, {
+    readonly size: "small" | "medium" | "large";
+    readonly loading: boolean;
+    readonly firstDayOfWeek: HeatmapFirstDayOfWeek;
+    readonly tooltip: boolean | TooltipProps;
+    readonly fillCalendarLeading: boolean;
+    readonly showColorIndicator: boolean;
+    readonly showWeekLabels: boolean;
+    readonly showMonthLabels: boolean;
+}, SlotsType<HeatmapSlots>, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+export default _default;

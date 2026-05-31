@@ -1,0 +1,1 @@
+export { backTopProps, default as NBackTop } from "./src/BackTop.mjs";

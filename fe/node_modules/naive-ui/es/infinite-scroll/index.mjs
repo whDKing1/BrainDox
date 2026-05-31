@@ -1,0 +1,1 @@
+export { infiniteScrollProps, default as NInfiniteScroll } from "./src/InfiniteScroll.mjs";

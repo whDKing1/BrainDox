@@ -22,6 +22,10 @@ from ..agents.treatment_agent import treatment_agent
 from ..agents.coding_agent import coding_agent
 from ..agents.audit_agent import audit_agent
 from ..agents.followup_intake_agent import followup_intake_agent
+from ..agents.mild_diagnosis_agent import mild_diagnosis_agent
+from ..agents.moderate_diagnosis_agent import moderate_diagnosis_agent
+from ..agents.mild_treatment_agent import mild_treatment_agent
+from ..agents.moderate_treatment_agent import moderate_treatment_agent
 
 # =============================================================================
 # 信息充足性检查 — 纯规则引擎，插入 Intake → Diagnosis 之间
@@ -300,6 +304,72 @@ def compile_pipeline(scenario: str, human_loop: bool = False):
     if human_loop:
         return build_new_visit_pipeline(interrupt_before=["treatment"])
     return build_new_visit_pipeline()
+
+
+# =============================================================================
+# 轻症Pipeline构建 — L0-L1
+# =============================================================================
+def build_mild_pipeline(checkpointer=None):
+    """
+    构建轻症Pipeline：MildDiagnosis → MildTreatment → END
+
+    用于 L0-L1 层级，症状较轻：
+      - MildDiagnosis：1 个结论 + ICD-11 Z编码
+      - MildTreatment：生活建议 + 自我调节（无药物）
+    不进入重症的 Coding/Audit 链路。
+    """
+    workflow = StateGraph(ClinicalState)
+    workflow.add_node("mild_diagnosis", mild_diagnosis_agent)
+    workflow.add_node("mild_treatment", mild_treatment_agent)
+    workflow.set_entry_point("mild_diagnosis")
+    workflow.add_edge("mild_diagnosis", "mild_treatment")
+    workflow.add_edge("mild_treatment", END)
+    if checkpointer is None:
+        checkpointer = MemorySaver()
+    return workflow.compile(checkpointer=checkpointer)
+
+
+# =============================================================================
+# 中症Pipeline构建 — L2
+# =============================================================================
+def build_moderate_pipeline(checkpointer=None):
+    """
+    构建中症Pipeline：ModerateDiagnosis → ModerateTreatment → END
+
+    用于 L2 层级：
+      - ModerateDiagnosis：2 个鉴别诊断
+      - ModerateTreatment：就医引导 + 生活建议（无药物）
+    不进入重症的 Coding/Audit 链路。
+    """
+    workflow = StateGraph(ClinicalState)
+    workflow.add_node("moderate_diagnosis", moderate_diagnosis_agent)
+    workflow.add_node("moderate_treatment", moderate_treatment_agent)
+    workflow.set_entry_point("moderate_diagnosis")
+    workflow.add_edge("moderate_diagnosis", "moderate_treatment")
+    workflow.add_edge("moderate_treatment", END)
+    if checkpointer is None:
+        checkpointer = MemorySaver()
+    return workflow.compile(checkpointer=checkpointer)
+
+
+# =============================================================================
+# 统一路由入口 — 根据严重度选择 Pipeline
+# =============================================================================
+def build_pipeline_by_route(triggered_route: str, checkpointer=None):
+    """
+    根据意图识别结果选择对应的 Pipeline。
+
+    参数:
+        triggered_route: "mild" | "moderate" | "severe"
+        checkpointer: 检查点实现
+    返回:
+        对应层级的编译后 LangGraph 应用
+    """
+    if triggered_route == "mild":
+        return build_mild_pipeline(checkpointer)
+    elif triggered_route == "moderate":
+        return build_moderate_pipeline(checkpointer)
+    return build_new_visit_pipeline(checkpointer)
 
 
 # 向后兼容别名

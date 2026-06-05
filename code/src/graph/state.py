@@ -222,3 +222,12 @@ class ClinicalState(BaseModel):
         default="new_visit",
         description="医生选择的就诊场景：new_visit=初诊全链路，followup=复诊精简链路",
     )
+    intent_result: Optional[dict] = Field(
+        default=None, description="意图识别结果：{intent, severity_level, confidence, risk_flags, triggered_route}"
+    )
+    triggered_route: str = Field(
+        default="mild", description="触发的诊断路由：mild=轻症, moderate=中症, severe=重症"
+    )
+    conversation_history: list[dict] = Field(
+        default_factory=list, description="对话历史记录 [{role, content}, ...]"
+    )

@@ -34,12 +34,22 @@ class Settings(BaseSettings):
     app_port: int = 8000
     log_level: str = "INFO"
 
-    @property
-    def postgres_dsn(self) -> str:
-        return (
-            f"postgresql://{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        )
+    # JWT
+    jwt_secret_key: str = "braindox-jwt-secret-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_patient_expire_hours: int = 168
+    jwt_doctor_expire_minutes: int = 240
+
+    # Email (SMTP)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    smtp_use_tls: bool = True
+
+    # PDF
+    pdf_storage_path: str = "./reports"
 
     class Config:
         env_file = ".env"

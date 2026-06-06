@@ -26,8 +26,6 @@ from ..models.patient import PatientInfo
 from ..models.diagnosis import DifferentialDiagnosis
 from ..models.treatment import (
     TreatmentPlan,
-    CodingResult,
-    AuditResult,
 )
 
 # =============================================================================
@@ -81,10 +79,6 @@ class ClinicalState(BaseModel):
                 不足 -> END (暂停，返回给医生补充)
         diagnosis + patient_info
             -> TreatmentAgent -> treatment_plan (治疗方案)
-        treatment_plan + diagnosis
-            -> CodingAgent -> coding_result (编码结果)
-        all outputs
-            -> AuditAgent -> audit_result (审计报告)
     """
 
     # =========================================================================
@@ -173,16 +167,6 @@ class ClinicalState(BaseModel):
         default=None, description="Treatment plan from TreatmentAgent"
     )
 
-    # ---- Coding Agent output ----
-    coding_result: Optional[dict] = Field(
-        default=None, description="ICD-10 / DRGs result from CodingAgent"
-    )
-
-    # ---- Audit Agent output ----
-    audit_result: Optional[dict] = Field(
-        default=None, description="Compliance report from AuditAgent"
-    )
-
     # =========================================================================
     # 共享元数据字段（跨越多个代理使用）
     # =========================================================================
@@ -222,11 +206,11 @@ class ClinicalState(BaseModel):
         default="new_visit",
         description="医生选择的就诊场景：new_visit=初诊全链路，followup=复诊精简链路",
     )
-    intent_result: Optional[dict] = Field(
-        default=None, description="意图识别结果：{intent, severity_level, confidence, risk_flags, triggered_route}"
-    )
     triggered_route: str = Field(
-        default="mild", description="触发的诊断路由：mild=轻症, moderate=中症, severe=重症"
+        default="mild", description="诊断路由（由 Severity Assessor 评估）：mild/moderate/severe"
+    )
+    severity_score: float = Field(
+        default=0.0, description="严重度综合评分 0-100（由 Severity Assessor 计算）"
     )
     conversation_history: list[dict] = Field(
         default_factory=list, description="对话历史记录 [{role, content}, ...]"

@@ -121,7 +121,13 @@ def _llm_classify(text: str, conversation_history: Optional[list[dict]] = None) 
         HumanMessage(content=user_content),
     ]
     try:
-        raw = llm.invoke(messages)
+        from .llm_utils import llm_invoke_sync
+        raw = llm_invoke_sync(
+            llm,
+            messages,
+            caller="intent_classifier",
+            timeout=15,
+        )
         result = json.loads(raw.content.strip())
         intent_map = {
             "倾诉": "倾诉", "求助": "求助", "危机": "危机",

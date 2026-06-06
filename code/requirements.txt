@@ -24,5 +24,6 @@ fhir.resources>=7.1.0
 numpy>=1.26.0
 structlog>=24.4.0
 tenacity>=9.0.0
+tiktoken>=0.7.0
 pytest>=8.3.0
 pytest-asyncio>=0.24.0
